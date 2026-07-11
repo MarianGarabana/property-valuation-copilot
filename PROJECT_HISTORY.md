@@ -201,6 +201,14 @@ Phases run in order; the reviewer gates each against the spec's Section 2 before
      the with/without comparison would report spatial memorization as gain.
   2. Fail fast: stratified ~20k-tile subset first; full 67k download gated on a
      non-neutral subset signal, user sees the subset result before the download.
+     Metric rule (user-set): the subset signal is reported as AUC or balanced
+     accuracy against the class-prior baseline, on a tile-disjoint holdout,
+     never raw accuracy. The condition field is ~78% "good", so blind
+     majority-class prediction scores 78% raw accuracy while knowing nothing;
+     the honest test is clearing the prior on tiles the CNN never saw. Current
+     state: 20k download running, tile straddle-exclusion assignment built
+     (models/image/tile_assignment.parquet), frozen-backbone linear probe queued
+     as the signal test, then hard stop at the download gate.
   3. Honesty gate: measure only what the image adds over and above the existing
      condition feature. Neutral-and-drop is a passing outcome.
   4. Fallback stance: if PNOA falls through, no synthetic per-listing score from
