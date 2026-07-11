@@ -1,0 +1,12 @@
+reference/
+data/raw/*
+!data/raw/.gitkeep
+__pycache__/
+*.pyc
+.venv/
+venv/
+mlruns/
+.DS_Store
+*.egg-info/
+.streamlit/secrets.toml
+*service-account*.json
