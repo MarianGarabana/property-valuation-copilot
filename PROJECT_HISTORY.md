@@ -205,10 +205,20 @@ Phases run in order; the reviewer gates each against the spec's Section 2 before
      accuracy against the class-prior baseline, on a tile-disjoint holdout,
      never raw accuracy. The condition field is ~78% "good", so blind
      majority-class prediction scores 78% raw accuracy while knowing nothing;
-     the honest test is clearing the prior on tiles the CNN never saw. Current
-     state: 20k download running, tile straddle-exclusion assignment built
-     (models/image/tile_assignment.parquet), frozen-backbone linear probe queued
-     as the signal test, then hard stop at the download gate.
+     the honest test is clearing the prior on tiles the CNN never saw.
+     Subset signal result (executed, tile-disjoint holdout, probe trained on
+     pure-train tiles only, overlap asserted empty): frozen ResNet18 features
+     plus balanced logistic head, binary good/new vs needs_renovation.
+     Tile-level ROC AUC 0.5929 (chance 0.5), balanced accuracy 0.5544 (chance
+     0.5), average precision 0.8716 (class prior 0.8217), listing-level AUC
+     0.5924 on 4,048 val listings. AUC stable across regularization
+     (0.5926-0.5939). License gate passed before download (WMS
+     AccessConstraints: CC BY 4.0). 19,997 of 20,000 tiles at 17.3 tiles/s,
+     ~460 MB. Honest read: above chance but weak; a 0.59-AUC noisy proxy of a
+     feature the model already has may add nothing over it, and
+     neutral-and-drop remains a passing outcome. Fine-tuning may lift it. At
+     the gate awaiting the user's call: full ~47k download plus fine-tune plus
+     the honesty-gate comparison, or call the feature dead now.
   3. Honesty gate: measure only what the image adds over and above the existing
      condition feature. Neutral-and-drop is a passing outcome.
   4. Fallback stance: if PNOA falls through, no synthetic per-listing score from
