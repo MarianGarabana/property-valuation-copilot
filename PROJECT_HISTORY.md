@@ -221,6 +221,17 @@ Phases run in order; the reviewer gates each against the spec's Section 2 before
 - **Commit plan (user-approved):** once CQR lands and the reviewer re-passes,
   commit the interval addendum together with the Phase 3 deliverables and the
   shap/matplotlib requirements lines.
+- **Phase 4 invalidation dependency (user-set, hard).** When the vision model
+  lands, `cnn_condition_score` goes from 100% null to a real feature and the
+  point model retrains on the new feature set. That changes every SHAP value,
+  adds a feature to every explanation, shifts the quantile models, and re-opens
+  the conformal calibration and the coverage number. Phase 4's retrain must
+  therefore trigger: regeneration of the full SHAP cache in
+  models/explain/cache/, a re-fit of the q05/q95 models and the CQR padding, and
+  a fresh test-coverage report. No Phase 2/3 number survives Phase 4
+  automatically. A stale SHAP cache would silently serve explanations for a
+  model that no longer exists; it would pass tests and still be wrong. This goes
+  verbatim into the vision-modeler dispatch.
 - **Kaggle.** Add `~/.kaggle/kaggle.json` if the secondary source is wanted later.
 - **CI data strategy.** Decide the test fixture (small committed sample parquet) so CI does not need R at runtime.
 
