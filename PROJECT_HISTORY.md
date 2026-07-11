@@ -184,7 +184,28 @@ Phases run in order; the reviewer gates each against the spec's Section 2 before
 
 - **Phase 2 — Tabular models. DONE**, including the CQR per-property interval addendum (see build log).
 - **Phase 3 — Explainability. DONE** (see build log). shap 0.52.0 and matplotlib 3.11.0 added by the lead through the sole-writer flow (the agent hit the missing dependency, paused, and asked instead of editing, as the governance rule intends).
-- **Phase 4 — Vision (vision-modeler).** CNN transfer learning that outputs `cnn_condition_score`, fed back as a feature; retrain and re-compare. Documented fallback if clean images are hard to source.
+- **Phase 4 — Vision (vision-modeler, in progress).** Sourcing plan user-approved:
+  PNOA aerial orthophoto tiles from IGN Spain (free WMTS, CC-BY 4.0 verified from
+  the license document, attribution required in README and UI), keyed lat/lon per
+  asset_id, ~67k tiles for all 72,185 listings. Label is a stated proxy: the CNN
+  predicts the existing tabular condition field from the tile, never price (that
+  would launder target leakage through the image model). Imagery is ~2023-2025
+  flights joined to 2018 listings; mismatch goes in the README. torchvision
+  0.28.0 added via the sole-writer flow. Four user conditions, all hard:
+  1. Tile-level leakage fix: tiles are shared across listings (~1.08 listings per
+     tile), so no tile may straddle CNN training and the val/test listings it
+     scores. Tiles containing any val/test listing are excluded from CNN
+     training entirely; all listings scored out-of-fold; verify any value-model
+     gain is not concentrated in shared-tile rows. Reason: a CNN that memorizes
+     tiles becomes a tile-ID lookup, tile identity correlates with price, and
+     the with/without comparison would report spatial memorization as gain.
+  2. Fail fast: stratified ~20k-tile subset first; full 67k download gated on a
+     non-neutral subset signal, user sees the subset result before the download.
+  3. Honesty gate: measure only what the image adds over and above the existing
+     condition feature. Neutral-and-drop is a passing outcome.
+  4. Fallback stance: if PNOA falls through, no synthetic per-listing score from
+     the 535-house fallback set; either drop the feature or ship the CNN as a
+     disclosed standalone demo, never a value-model input.
 - **Phase 5 — Agentic copilot (agent-builder).** LangGraph graph: comparables, valuation, energy, narrative agents. Free LLM backend (Gemini free tier or Ollama).
 - **Phase 6 — Dashboard (frontend).** Streamlit multipage on the MadridRental base: Market Explorer, Value Estimator with SHAP, Comparables Map, Energy/ESG, Copilot Report.
 - **Phase 7 — MLOps and deploy (mlops).** MLflow registry, data-drift check, GitHub Actions CI, deploy to a free host. CI note: it now depends on base R plus shapely, so commit a small sample parquet as a test fixture instead of regenerating through R on the runner.
