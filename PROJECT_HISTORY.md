@@ -271,6 +271,11 @@ coverage-tolerance and ordering-invariant tests, 7 explain).
   verbatim into the vision-modeler dispatch.
 - **Kaggle.** Add `~/.kaggle/kaggle.json` if the secondary source is wanted later.
 - **CI data strategy.** Decide the test fixture (small committed sample parquet) so CI does not need R at runtime.
+- **Deploy cache strategy (Phase 7).** The SHAP cache is gitignored (derived,
+  deterministic, 28MB per regeneration). The deployed app must get it another
+  way: rebuild at startup (441s one-time, e.g. behind a Streamlit resource
+  cache) or fetch it as an MLflow/release artifact. Decide in Phase 7 alongside
+  the CI fixture.
 
 ---
 
