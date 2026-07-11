@@ -122,10 +122,10 @@ FEATURES = [
     Feature("property_age", "int", "derived", True, "REFERENCE_YEAR minus construction_year; null when year null."),
     Feature("latitude", "float", "LATITUDE", False, "WGS84 latitude, inside Madrid bounding box."),
     Feature("longitude", "float", "LONGITUDE", False, "WGS84 longitude, inside Madrid bounding box."),
-    # Location placeholders. idealista18 sale rows carry no neighborhood name;
-    # assigning one needs a spatial join to Madrid_Polygons (deferred, see report).
-    Feature("neighborhood_id", "str", "placeholder", True, "Barrio id from spatial join; null until Polygons join is added."),
-    Feature("neighborhood_name", "str", "placeholder", True, "Barrio name from spatial join; null until Polygons join is added."),
+    # Barrio, filled by point-in-polygon join to Madrid_Polygons (135 zone-level-8
+    # polygons). ~0.1% of rows fall in gaps between barrios and stay null.
+    Feature("neighborhood_id", "str", "derived", True, "Barrio LOCATIONID from point-in-polygon join; null if outside all barrios."),
+    Feature("neighborhood_name", "str", "derived", True, "Barrio name from point-in-polygon join; null if outside all barrios."),
     # Amenity and quality features.
     Feature("has_terrace", "int", "HASTERRACE", False, "1 if the listing has a terrace."),
     Feature("has_lift", "int", "HASLIFT", False, "1 if the building has a lift."),

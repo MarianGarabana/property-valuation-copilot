@@ -51,9 +51,17 @@ def test_construction_year_null_rate_bounded(df):
     assert rate < 0.7
 
 
-def test_placeholders_are_null(df):
+def test_cnn_score_is_null_placeholder(df):
     assert df["cnn_condition_score"].null_count() == df.height
-    assert df["neighborhood_name"].null_count() == df.height
+
+
+def test_neighborhood_match_rate(df):
+    # Barrios come from a point-in-polygon join; a few rows fall in gaps and
+    # stay null. Expect the vast majority assigned to a real barrio.
+    matched = df["neighborhood_id"].drop_nulls().len()
+    assert matched / df.height >= 0.98
+    # id and name are filled together.
+    assert df["neighborhood_id"].null_count() == df["neighborhood_name"].null_count()
 
 
 def test_price_and_area_positive(df):
