@@ -322,6 +322,15 @@ coverage-tolerance and ordering-invariant tests, 7 explain).
   0.90 measured, "90%" becomes an honest label, but the rule is
   display-measured-never-inflate, forever. Goes verbatim into the frontend and
   agent-builder dispatches.
+- **Phase 5 LLM-boundary rules (user-set, hard).** The narrative LLM phrases the
+  deterministic payload and nothing else: no introduced, computed, or altered
+  numbers. A validation step extracts every figure from the generated prose and
+  fails the node to the labeled template fallback if any figure is not in the
+  structured payload. The energy value impact is either grounded in a computed
+  relationship (price vs derived band, or SHAP of energy-related features) or
+  explicitly labeled an illustrative estimate; never stated as measured fact.
+  Every narrative carries the 2018-prototype caveat inline. Tests cover all
+  three.
 - **Kaggle.** Add `~/.kaggle/kaggle.json` if the secondary source is wanted later.
 - **CI data strategy.** Decide the test fixture (small committed sample parquet) so CI does not need R at runtime.
 - **Deploy cache strategy (Phase 7).** The SHAP cache is gitignored (derived,
