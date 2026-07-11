@@ -214,11 +214,36 @@ Phases run in order; the reviewer gates each against the spec's Section 2 before
      0.5924 on 4,048 val listings. AUC stable across regularization
      (0.5926-0.5939). License gate passed before download (WMS
      AccessConstraints: CC BY 4.0). 19,997 of 20,000 tiles at 17.3 tiles/s,
-     ~460 MB. Honest read: above chance but weak; a 0.59-AUC noisy proxy of a
-     feature the model already has may add nothing over it, and
-     neutral-and-drop remains a passing outcome. Fine-tuning may lift it. At
-     the gate awaiting the user's call: full ~47k download plus fine-tune plus
-     the honesty-gate comparison, or call the feature dead now.
+     ~460 MB. Honest read: above chance but weak.
+     Gate outcome (user decision): no full download, no fine-tune. Reasoning:
+     the ceiling is redundancy, not AUC. The CNN predicts condition, which the
+     value model already has exactly, so the score is by construction a noisy
+     compression of a known feature; fine-tuning sharpens the copy but a
+     sharper copy is still redundant, and retargeting to price is the standing
+     leakage veto. Instead one cheap measurement: a scoped subset ablation.
+     Ablation (executed, same 4,048 val listings both runs, production
+     hyperparameters, out-of-fold scores, straddle exclusion intact):
+     without cnn_condition_score MAE 48,580 / RMSE 84,124 / MAPE 14.41;
+     with it MAE 48,884 / RMSE 84,510 / MAPE 14.51. Delta +303 / +386 /
+     +0.10pp: uniformly negative sign, within sampling wobble, no lift to
+     chase. The redundancy hypothesis is a measurement now, not an assumption.
+     Defect caught mid-ablation: the first pass returned byte-identical
+     with/without results because the join collided with the all-null
+     cnn_condition_score placeholder in listings.parquet and silently renamed
+     the real scores away, feeding LightGBM the null column. Fixed (drop
+     placeholder before join) plus a non-null assertion. Standing warning: any
+     code joining a real score onto listings.parquet must drop the placeholder
+     column first or the join fails silently.
+     Drop executed (user-approved): cnn_condition_score stays null and out of
+     the model; schema.py note marks it a closed decision. The CNN ships as a
+     documented capability demo. Spec Section 2's CNN criterion was amended
+     (user-approved) to what actually happened: leakage-controlled CNN built
+     and evaluated, measured redundant against condition, dropped per the
+     honest-AVM rule; Phase 8 reviews against the amended wording.
+     No-cascade confirmation: the feature is dropped, so the point model is
+     unchanged and every Phase 2/3 artifact stays valid. No SHAP cache
+     regeneration, no quantile refit, no CQR re-run, no coverage change. The
+     Phase 4 invalidation cascade is void.
   3. Honesty gate: measure only what the image adds over and above the existing
      condition feature. Neutral-and-drop is a passing outcome.
   4. Fallback stance: if PNOA falls through, no synthetic per-listing score from
@@ -297,17 +322,6 @@ coverage-tolerance and ordering-invariant tests, 7 explain).
   0.90 measured, "90%" becomes an honest label, but the rule is
   display-measured-never-inflate, forever. Goes verbatim into the frontend and
   agent-builder dispatches.
-- **Phase 4 invalidation dependency (user-set, hard).** When the vision model
-  lands, `cnn_condition_score` goes from 100% null to a real feature and the
-  point model retrains on the new feature set. That changes every SHAP value,
-  adds a feature to every explanation, shifts the quantile models, and re-opens
-  the conformal calibration and the coverage number. Phase 4's retrain must
-  therefore trigger: regeneration of the full SHAP cache in
-  models/explain/cache/, a re-fit of the q05/q95 models and the CQR padding, and
-  a fresh test-coverage report. No Phase 2/3 number survives Phase 4
-  automatically. A stale SHAP cache would silently serve explanations for a
-  model that no longer exists; it would pass tests and still be wrong. This goes
-  verbatim into the vision-modeler dispatch.
 - **Kaggle.** Add `~/.kaggle/kaggle.json` if the secondary source is wanted later.
 - **CI data strategy.** Decide the test fixture (small committed sample parquet) so CI does not need R at runtime.
 - **Deploy cache strategy (Phase 7).** The SHAP cache is gitignored (derived,

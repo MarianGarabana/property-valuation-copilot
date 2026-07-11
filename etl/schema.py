@@ -157,7 +157,7 @@ FEATURES = [
     Feature("distance_to_metro", "float", "DISTANCE_TO_METRO", False, "Distance to nearest metro in meters."),
     Feature("distance_to_castellana", "float", "DISTANCE_TO_CASTELLANA", False, "Distance to Paseo de la Castellana in meters."),
     # Image-model placeholder, filled by the CNN in Phase 4.
-    Feature("cnn_condition_score", "float", "placeholder", True, "CNN property/neighborhood condition score (0 to 1); null until Phase 4."),
+    Feature("cnn_condition_score", "float", "placeholder", True, "CNN aerial condition score (0 to 1). Tested in Phase 4, measured redundant against condition (subset ablation: MAE +303, RMSE +386, MAPE +0.10pp), intentionally dropped. Not a model feature; stays null. Closed decision, not a TODO."),
 ]
 
 FEATURE_NAMES = [f.name for f in FEATURES]

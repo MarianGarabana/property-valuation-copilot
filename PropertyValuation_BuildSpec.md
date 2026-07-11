@@ -22,7 +22,7 @@ The build is done when:
 
 - A user can select or enter a Madrid property and receive an estimated value with a confidence range.
 - The estimate is accompanied by a SHAP explanation (both a plot and plain-language text).
-- A CNN produces a condition/quality score from an image, and that score feeds the valuation.
+- A CNN condition model is built and evaluated under explicit spatial-leakage controls, and its score feeds the valuation only if it improves held-out metrics over the existing condition feature. (Amended after Phase 4, user-approved: the score was measured redundant against condition on a controlled subset ablation and intentionally dropped; the CNN ships as a documented capability demo. This criterion is met by the leakage-controlled evaluation and the honest drop, and Phase 8 reviews against this amended wording.)
 - The dashboard shows comparable properties on a map.
 - An energy/ESG flag appears (rule-based or predicted EPC band) with its value impact.
 - A copilot produces a written valuation summary combining the above.
