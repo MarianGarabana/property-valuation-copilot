@@ -31,6 +31,9 @@ local or Colab free GPU. Ask before any step that could cost money.
   these files directly.
 
 ## Coding rules
+- Run every Python script and version check through the repo venv interpreter
+  explicitly (.venv/bin/python). Bare python or python3 is a different
+  environment and has produced false version alarms twice.
 - Smallest change that satisfies the request. No unrequested extras.
 - Ask before adding code comments or docs.
 - Feature names are snake_case and live in one schema file (etl/); no ad hoc renaming.
