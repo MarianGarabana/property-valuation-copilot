@@ -9,6 +9,7 @@ mlruns/
 models/tabular/*.pt
 models/tabular/*.txt
 models/tabular/*.joblib
+models/explain/cache/
 .DS_Store
 *.egg-info/
 .streamlit/secrets.toml
