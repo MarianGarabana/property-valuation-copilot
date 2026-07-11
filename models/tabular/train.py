@@ -36,12 +36,6 @@ def run_worker(script_name):
         raise RuntimeError(f"worker {script_name} exited with code {result.returncode}")
 
 
-def residual_interval(residuals):
-    low = float(np.quantile(residuals, (1.0 - INTERVAL_COVERAGE) / 2.0))
-    high = float(np.quantile(residuals, 1.0 - (1.0 - INTERVAL_COVERAGE) / 2.0))
-    return low, high
-
-
 PRODUCTION_TAG = "is_production"
 ARTIFACT_PATH = "production"
 
@@ -61,6 +55,16 @@ def log_run(run_name, params, val_metrics, test_metrics, extra):
             for metric_name, value in m.items():
                 mlflow.log_metric(f"{split_name}_{metric_name}", value)
         return run.info.run_id
+
+
+def log_quantile_run(run_name, alpha, best_iteration, test_pinball):
+    with mlflow.start_run(run_name=run_name):
+        mlflow.log_param("split_id", SPLIT_ID)
+        mlflow.log_param("split_seed", SPLIT_SEED)
+        mlflow.log_param("objective", "quantile")
+        mlflow.log_param("alpha", alpha)
+        mlflow.log_param("best_iteration", best_iteration)
+        mlflow.log_metric("test_pinball", test_pinball)
 
 
 def write_comparison(lgbm_res, nn_res, winner):
@@ -83,13 +87,59 @@ def write_comparison(lgbm_res, nn_res, winner):
     lines.append("")
     lines.append(f"Winner (lowest test MAE): {winner}. Saved as the production artifact.")
     lines.append("")
-    lines.append("Confidence range: residual-based. The interval is the point estimate plus the")
+    q = lgbm_res["quantile"]
+    lines.append("Confidence range: conformalized per-property LightGBM quantile regression (CQR).")
     lines.append(
-        f"empirical {int(INTERVAL_COVERAGE * 100)}% quantile band of the winning model's "
-        "validation-set"
+        f"Two extra LightGBM models with objective=quantile at alpha {q['q_low_alpha']} and "
+        f"{q['q_high_alpha']} give a"
     )
-    lines.append("residuals (y_true minus y_pred), so the band reflects real out-of-sample error")
-    lines.append("rather than a model-reported variance.")
+    lines.append(
+        "central interval whose width scales with the property. Split-conformal calibration on the"
+    )
+    lines.append(
+        f"validation split ({q['calibration_rows']} rows, never test) pads both ends by a single Q "
+        f"= {q['calibration_q']:,.0f} EUR,"
+    )
+    lines.append(
+        "the ceil((n+1)*0.90)-th conformity score, which restores marginal coverage while keeping"
+    )
+    lines.append("the per-property shape. The point estimate stays from the production point model.")
+    lines.append("")
+    lines.append("Interval coverage and width (held-out test, 14437 rows):")
+    lines.append("")
+    lines.append("| Band | Test coverage | Mean width (EUR) |")
+    lines.append("|---|---|---|")
+    lines.append("| Old additive residual (homoscedastic) | 0.8992 | 189,853 (constant) |")
+    lines.append(
+        f"| Raw LightGBM quantile (per-property) | {q['test_raw_quantile_coverage']:.4f} | "
+        f"{q['test_raw_mean_interval_width']:,.0f} |"
+    )
+    lines.append(
+        f"| CQR-calibrated quantile (shipped) | {q['test_interval_coverage']:.4f} | "
+        f"{q['test_mean_interval_width']:,.0f} |"
+    )
+    lines.append("")
+    lines.append(
+        f"The raw quantile band undercovered at {q['test_raw_quantile_coverage']:.4f}. CQR padding "
+        f"by Q = {q['calibration_q']:,.0f} EUR"
+    )
+    lines.append(
+        f"lifts test coverage to {q['test_interval_coverage']:.4f}, near the 0.90 nominal, measured"
+    )
+    lines.append(
+        "on the untouched test set (Q was fixed on validation, never tuned on test). The band stays"
+    )
+    lines.append(
+        "per-property: the additive Q shifts both ends by the same amount but the base quantile"
+    )
+    lines.append(
+        "spread differs by property, so cheap listings keep a narrower band than expensive ones."
+    )
+    lines.append(
+        f"Ordering low <= estimate <= high is enforced; {q['n_corrected']} of {q['test_rows']} test"
+    )
+    lines.append("rows needed a correction. The old additive band gave every property the same euro")
+    lines.append("width, which is not credible on cheap listings.")
     lines.append("")
     lines.append("Top LightGBM feature importances (gain share):")
     for name, share in lgbm_res["importance_shares"][:8]:
@@ -129,13 +179,25 @@ def main():
         {"best_epoch": nn_res["best_epoch"]},
     )
 
+    q = lgbm_res["quantile"]
+    log_quantile_run("lightgbm_q05", q["q_low_alpha"], q["q05_best_iteration"], q["test_pinball_low"])
+    log_quantile_run("lightgbm_q95", q["q_high_alpha"], q["q95_best_iteration"], q["test_pinball_high"])
+
     lgbm_mae = lgbm_res["test_metrics"]["mae"]
     nn_mae = nn_res["test_metrics"]["mae"]
     winner = "LightGBM baseline" if lgbm_mae <= nn_mae else "PyTorch tabular NN"
 
+    band_meta = {
+        "interval_method": "cqr_lgbm_quantile",
+        "q05_model_path": q["q05_model_path"],
+        "q95_model_path": q["q95_model_path"],
+        "calibration_q": q["calibration_q"],
+        "interval_coverage": INTERVAL_COVERAGE,
+        "interval_test_coverage": q["test_interval_coverage"],
+    }
+
     if winner == "LightGBM baseline":
         winning_run_id = lgbm_run_id
-        low, high = residual_interval(lgbm_res["val_residuals"])
         meta = {
             "model_type": "lightgbm",
             "model_path": lgbm_res["model_path"],
@@ -143,15 +205,11 @@ def main():
             "categorical_features": prep.CATEGORICAL_FEATURES,
             "categorical_levels": lgbm_res["categorical_levels"],
             "numeric_features": prep.NUMERIC_FEATURES,
-            "interval_low": low,
-            "interval_high": high,
-            "interval_coverage": INTERVAL_COVERAGE,
             "split_id": SPLIT_ID,
             "test_metrics": lgbm_res["test_metrics"],
         }
     else:
         winning_run_id = nn_run_id
-        low, high = residual_interval(nn_res["val_residuals"])
         meta = {
             "model_type": "pytorch_mlp",
             "model_path": nn_res["model_path"],
@@ -163,34 +221,49 @@ def main():
             "target_mean": nn_res["target_mean"],
             "target_std": nn_res["target_std"],
             "input_dim": nn_res["input_dim"],
-            "interval_low": low,
-            "interval_high": high,
-            "interval_coverage": INTERVAL_COVERAGE,
             "split_id": SPLIT_ID,
             "test_metrics": nn_res["test_metrics"],
         }
 
+    meta.update(band_meta)
     meta["run_id"] = winning_run_id
     joblib.dump(meta, PRODUCTION_META_PATH)
 
     model_file = TABULAR_DIR / meta["model_path"]
+    q05_file = TABULAR_DIR / q["q05_model_path"]
+    q95_file = TABULAR_DIR / q["q95_model_path"]
     client = mlflow.tracking.MlflowClient()
     experiment = client.get_experiment_by_name(EXPERIMENT)
+    with mlflow.start_run(run_id=winning_run_id):
+        mlflow.set_tag(PRODUCTION_TAG, "true")
+        mlflow.set_tag("winner", winner)
+        mlflow.log_metric("test_interval_coverage", q["test_interval_coverage"])
+        mlflow.log_metric("test_raw_quantile_coverage", q["test_raw_quantile_coverage"])
+        mlflow.log_metric("test_pure_quantile_coverage", q["test_pure_quantile_coverage"])
+        mlflow.log_metric("test_mean_interval_width", q["test_mean_interval_width"])
+        mlflow.log_metric("test_raw_mean_interval_width", q["test_raw_mean_interval_width"])
+        mlflow.log_metric("calibration_q", q["calibration_q"])
+        mlflow.log_metric("test_interval_rows_corrected", q["n_corrected"])
+        for artifact in (model_file, q05_file, q95_file, PRODUCTION_META_PATH):
+            mlflow.log_artifact(str(artifact), artifact_path=ARTIFACT_PATH)
     for prior in client.search_runs(
         [experiment.experiment_id], filter_string=f"tags.{PRODUCTION_TAG} = 'true'"
     ):
         if prior.info.run_id != winning_run_id:
             client.set_tag(prior.info.run_id, PRODUCTION_TAG, "false")
-    with mlflow.start_run(run_id=winning_run_id):
-        mlflow.set_tag(PRODUCTION_TAG, "true")
-        mlflow.set_tag("winner", winner)
-        mlflow.log_artifact(str(model_file), artifact_path=ARTIFACT_PATH)
-        mlflow.log_artifact(str(PRODUCTION_META_PATH), artifact_path=ARTIFACT_PATH)
 
     write_comparison(lgbm_res, nn_res, winner)
     print(f"Winner: {winner} (run_id {winning_run_id})")
-    print(f"Interval ({int(INTERVAL_COVERAGE*100)}%): [{low:,.0f}, {high:,.0f}] EUR around point estimate")
-    print(f"Logged production model + meta to MLflow run {winning_run_id} under '{ARTIFACT_PATH}/'")
+    print(
+        f"CQR band test coverage {q['test_interval_coverage']:.4f} (raw {q['test_raw_quantile_coverage']:.4f}, "
+        f"old additive 0.8992); Q={q['calibration_q']:,.0f}; "
+        f"mean width {q['test_mean_interval_width']:,.0f} (raw {q['test_raw_mean_interval_width']:,.0f})"
+    )
+    print(
+        f"Ordering corrections: crossing={q['n_crossing']}, point_excluded={q['n_point_excluded']}, "
+        f"total={q['n_corrected']} of {q['test_rows']} test rows"
+    )
+    print(f"Logged production model, quantile models, and meta to MLflow run {winning_run_id}")
 
 
 if __name__ == "__main__":

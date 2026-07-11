@@ -60,15 +60,14 @@ def _load_bundle():
         import lightgbm as lgb
 
         meta["_booster"] = lgb.Booster(model_file=str(model_file))
+        meta["_q05"] = lgb.Booster(model_file=str(production_dir / meta["q05_model_path"]))
+        meta["_q95"] = lgb.Booster(model_file=str(production_dir / meta["q95_model_path"]))
     elif meta["model_type"] == "pytorch_mlp":
-        import torch
-
-        from nn_model import TabularMLP
-
-        model = TabularMLP(meta["input_dim"])
-        model.load_state_dict(torch.load(model_file))
-        model.eval()
-        meta["_torch_model"] = model
+        raise NotImplementedError(
+            "production model is pytorch_mlp; the LightGBM quantile band cannot share a process "
+            "with torch on this platform (OpenMP conflict). Isolate the band before serving a "
+            "torch point model."
+        )
     else:
         raise ValueError(f"unknown model_type {meta['model_type']}")
     _BUNDLE = meta
@@ -88,28 +87,31 @@ def _to_frame(rows, meta):
     return frame[meta["usable_features"]]
 
 
-def _point_estimate(frame, meta):
-    if meta["model_type"] == "lightgbm":
-        x = frame.copy()
-        for col in meta["categorical_features"]:
-            x[col] = pd.Categorical(x[col], categories=meta["categorical_levels"][col])
-        for col in meta["numeric_features"]:
-            x[col] = pd.to_numeric(x[col], errors="coerce")
-        return np.asarray(meta["_booster"].predict(x), dtype="float64")
-    import torch
-
-    x = prep.transform_nn(frame, meta["preproc"])
-    with torch.no_grad():
-        z = meta["_torch_model"](torch.tensor(x, dtype=torch.float32)).cpu().numpy()
-    return np.exp(z * meta["target_std"] + meta["target_mean"]).astype("float64")
+def _lgbm_frame(frame, meta):
+    x = frame.copy()
+    for col in meta["categorical_features"]:
+        x[col] = pd.Categorical(x[col], categories=meta["categorical_levels"][col])
+    for col in meta["numeric_features"]:
+        x[col] = pd.to_numeric(x[col], errors="coerce")
+    return x
 
 
 def predict(rows):
     meta = _load_bundle()
     frame = _to_frame(rows, meta)
-    point = _point_estimate(frame, meta)
-    low = point + meta["interval_low"]
-    high = point + meta["interval_high"]
+    x = _lgbm_frame(frame, meta)
+    point = np.asarray(meta["_booster"].predict(x), dtype="float64")
+    q05 = np.asarray(meta["_q05"].predict(x), dtype="float64")
+    q95 = np.asarray(meta["_q95"].predict(x), dtype="float64")
+
+    q = meta["calibration_q"]
+    padded_low = q05 - q
+    padded_high = q95 + q
+    low = np.minimum(padded_low, padded_high)
+    high = np.maximum(padded_low, padded_high)
+    low = np.minimum(low, point)
+    high = np.maximum(high, point)
+
     results = []
     for est, lo, hi in zip(point, low, high):
         results.append(
@@ -118,6 +120,7 @@ def predict(rows):
                 "low": float(lo),
                 "high": float(hi),
                 "interval_coverage": meta["interval_coverage"],
+                "interval_test_coverage": meta["interval_test_coverage"],
             }
         )
     return results
@@ -132,9 +135,10 @@ def model_info():
     return {
         "model_type": meta["model_type"],
         "run_id": meta["run_id"],
+        "interval_method": meta["interval_method"],
         "interval_coverage": meta["interval_coverage"],
-        "interval_low": meta["interval_low"],
-        "interval_high": meta["interval_high"],
+        "interval_test_coverage": meta["interval_test_coverage"],
+        "calibration_q": meta["calibration_q"],
         "split_id": meta["split_id"],
         "test_metrics": meta["test_metrics"],
     }
