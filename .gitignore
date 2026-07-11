@@ -6,6 +6,9 @@ __pycache__/
 .venv/
 venv/
 mlruns/
+models/tabular/*.pt
+models/tabular/*.txt
+models/tabular/*.joblib
 .DS_Store
 *.egg-info/
 .streamlit/secrets.toml
