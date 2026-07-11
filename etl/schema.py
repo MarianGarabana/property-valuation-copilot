@@ -187,10 +187,15 @@ LEAKAGE_COLUMNS = ["unit_price_m2"]
 # Row identifiers, not predictive features.
 IDENTIFIER_COLUMNS = ["asset_id", "period"]
 
+# Display and comps only, never model inputs. neighborhood_name is one-to-one
+# with neighborhood_id, which is the categorical feature the models use.
+DISPLAY_COLUMNS = ["neighborhood_name"]
+
 # Safe feature set for the value model: everything except the target, its
-# leakage columns, and identifiers. Downstream agents build features from this.
+# leakage columns, identifiers, and display-only columns. Downstream agents
+# build features from this.
 MODEL_FEATURE_NAMES = [
     f
     for f in FEATURE_NAMES
-    if f not in {TARGET, *LEAKAGE_COLUMNS, *IDENTIFIER_COLUMNS}
+    if f not in {TARGET, *LEAKAGE_COLUMNS, *IDENTIFIER_COLUMNS, *DISPLAY_COLUMNS}
 ]
