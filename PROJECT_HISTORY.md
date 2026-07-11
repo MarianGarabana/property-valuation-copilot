@@ -182,8 +182,8 @@ Commits: `4121580` PROJECT_HISTORY added, `7223937` governance rules,
 
 Phases run in order; the reviewer gates each against the spec's Section 2 before it is marked done.
 
-- **Phase 2 — Tabular models. DONE** (see build log). Addendum in progress: per-property quantile intervals.
-- **Phase 3 — Explainability (explainability, in progress).** SHAP over the production model via TreeExplainer (exact on trees, no sampling), resolved through the MLflow production tag, predict.py imported read-only. Per-prediction plots and plain-language driver text, global and per-prediction SHAP caches for instant dashboard rendering. shap 0.52.0 and matplotlib 3.11.0 added by the lead through the sole-writer flow (the agent hit the missing dependency, paused, and asked instead of editing, as the governance rule intends). Write isolation with the parallel addendum: ml-modeler owns models/tabular/, explainability owns models/explain/.
+- **Phase 2 — Tabular models. DONE**, including the CQR per-property interval addendum (see build log).
+- **Phase 3 — Explainability. DONE** (see build log). shap 0.52.0 and matplotlib 3.11.0 added by the lead through the sole-writer flow (the agent hit the missing dependency, paused, and asked instead of editing, as the governance rule intends).
 - **Phase 4 — Vision (vision-modeler).** CNN transfer learning that outputs `cnn_condition_score`, fed back as a feature; retrain and re-compare. Documented fallback if clean images are hard to source.
 - **Phase 5 — Agentic copilot (agent-builder).** LangGraph graph: comparables, valuation, energy, narrative agents. Free LLM backend (Gemini free tier or Ollama).
 - **Phase 6 — Dashboard (frontend).** Streamlit multipage on the MadridRental base: Market Explorer, Value Estimator with SHAP, Comparables Map, Energy/ESG, Copilot Report.
@@ -191,36 +191,73 @@ Phases run in order; the reviewer gates each against the spec's Section 2 before
 - **Phase 8 — Final review (reviewer on Fable 5).** Full pass against Section 2, honesty constraints visible, no paid dependency, model card and demo script.
 - **Stretch (after Phase 8).** RL module (budget-constrained re-valuation ordering or retrofit sequencing), Barcelona/Valencia expansion, physical-climate-risk overlay.
 
+### Phase 2 addendum — per-property CQR intervals (complete, reviewer-passed)
+
+The global homoscedastic band was replaced in two steps, both on the untouched
+14,437-row test set, all numbers lead-verified against MLflow:
+
+| Band | Test coverage | Mean width (EUR) |
+|---|---|---|
+| Old additive residual (flat) | 0.8992 | 189,853 |
+| Raw LightGBM quantile (q05/q95) | 0.8267 | 171,180 |
+| CQR-calibrated quantile (shipped) | 0.9030 | 194,345 |
+
+The raw quantile band had the right per-property shape (cheap flat width 75k vs
+expensive 1.0M after calibration, ~13x) but undercovered at 0.8267 because
+regularized LightGBM quantile fits have narrow tails. Fix: standard split-
+conformal CQR, user-prescribed. Conformity scores E = max(q05 - y, y - q95) on
+the 11,550 validation rows only, Q = 11,594 EUR at the ceil((n+1)*0.90)/n
+quantile, shipped band [q05 - Q, q95 + Q] with low <= estimate <= high enforced
+(14 of 14,437 rows corrected, 0 crossings). Coverage measured on test, never
+tuned there; the reviewer recomputed Q independently and confirmed. Point
+estimate and its metrics unchanged. Concept: conformal prediction measures how
+far the raw band missed on held-out data and pads every interval by that
+amount, which is what buys the finite-sample coverage guarantee the raw
+quantile models lack.
+
+MLflow now logs coverage on every retrain (`test_interval_coverage` plus raw
+coverage, widths, calibration_q, correction count), so future retrains prove
+their own calibration. Retagging is atomic (tag new production run before
+clearing stale tags); an earlier empty-tag window had briefly broken the Phase 3
+cache build. predict() returns nominal 0.90 and measured 0.9030 side by side.
+
+### Phase 3 — Explainability (complete, reviewer-passed)
+
+Built in `models/explain/`: `shap_explainer.py` (TreeExplainer over the
+production booster, resolved through the same MLflow production tag predict.py
+uses), `labels.py` (plain-language driver text per the domain skill's writing
+rules, every clause carries a concrete EUR number), `explain.py` (one entry
+point returning estimate, range from predict.py, five signed EUR drivers,
+driver text, plot), `cache.py`.
+
+Cache: full-dataset precompute chosen after a timing test (TreeExplainer over
+all 72,185 rows x 38 features took 441 seconds, one-time). Layout:
+`cache/shap_values.parquet` (28MB, asset_id + per-feature SHAP + base value +
+prediction) and `cache/global_importance.parquet` (mean abs SHAP, 38 features).
+explain() hits the cache by asset_id and recomputes only for unseen or
+user-entered properties. Additivity verified: SHAP values plus base equal the
+prediction exactly.
+
+Defect found by the reviewer and fixed in scope: the shipped cache parquets
+were unreadable in the reviewer's environment (pyarrow writer/reader version
+skew) while the round-trip test passed by writing fresh tmp files. Read path
+switched to polars (version-tolerant). Two hardening steps followed by the
+lead: `requirements.txt` pyarrow pin corrected from 25.0.0 to the actually
+installed 24.0.0 (the pin had never matched the venv), and a test added that
+reads the shipped cache files, not a tmp round-trip. Lesson recorded: a test
+that exercises a fresh artifact does not prove the shipped artifact loads.
+
+Tests: 28 passing total (12 data validation, 9 tabular including the CQR
+coverage-tolerance and ordering-invariant tests, 7 explain).
+
 ### Open items and pending flags
 
-- **Quantile-interval addendum (in progress, ml-modeler).** Replace the global
-  homoscedastic band with LightGBM quantile regression at alpha 0.05 and 0.95 so
-  intervals widen with price. User-flagged failure modes to guard: quantile
-  crossing (q05 above q95) and band exclusion (point estimate outside the band,
-  since the three models are independent). predict.py enforces
-  low <= estimate <= high, the correction count on test is reported (more than a
-  handful means the quantile fits need another look), the new empirical test
-  coverage is reported next to the old 0.8992, and `test_interval_coverage` is
-  logged to MLflow (v1 returned it but never logged it). Ordering invariant gets
-  its own test.
 - **Phase 6 display rule (permanent, user-set).** The dashboard and the copilot
   surface the MEASURED interval coverage and never print a bare "90% confidence
   interval" over a band that does not cover 90%. If the conformal band lands near
   0.90 measured, "90%" becomes an honest label, but the rule is
   display-measured-never-inflate, forever. Goes verbatim into the frontend and
   agent-builder dispatches.
-- **CQR in progress (ml-modeler).** The raw [q05, q95] band has the right
-  per-property shape (18.8x width scaling, 0 crossings, 55 of 14,437 rows
-  ordering-clipped) but undercovers: 0.8267 vs 0.90 nominal (old global band:
-  0.8992, width ~190k flat; quantile band mean width 171,180). User-prescribed
-  fix: standard conformalized quantile regression. Conformity scores
-  E_i = max(q05 - y, y - q95) on the validation split, Q = ceil((n+1)*0.90)/n
-  empirical quantile, band [q05 - Q, q95 + Q]. Finite-sample marginal coverage
-  guarantee; cost is honest extra width. Report post-conformal test coverage,
-  width, and the same cheap/expensive example pair.
-- **Commit plan (user-approved):** once CQR lands and the reviewer re-passes,
-  commit the interval addendum together with the Phase 3 deliverables and the
-  shap/matplotlib requirements lines.
 - **Phase 4 invalidation dependency (user-set, hard).** When the vision model
   lands, `cnn_condition_score` goes from 100% null to a real feature and the
   point model retrains on the new feature set. That changes every SHAP value,
