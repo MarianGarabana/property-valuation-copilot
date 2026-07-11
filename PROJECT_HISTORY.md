@@ -79,8 +79,7 @@ Tests: `tests/test_data_validation.py` 12 passed (schema match, row count in [60
 Dependencies at end of Phase 1: polars, pyarrow, pytest, shapely 2.1.2, and (added by ml-modeler mid-flight) lightgbm, torch, mlflow, scikit-learn. `pyreadr` dropped: it could not read the sf object with a geometry list-column, so the R helper is the working parse path.
 
 Commits (on main): `f9c817f` Phase 0 setup, `d30a525` Phase 1 data layer,
-`e1d9511` pyreadr pin dropped, `bf175f2` neighborhood geo join. Phase 2 files stay
-uncommitted until the user approves after the reviewer re-gate.
+`e1d9511` pyreadr pin dropped, `bf175f2` neighborhood geo join.
 
 ### Between phases 1 and 2 — governance and schema fixes (complete)
 
@@ -100,6 +99,73 @@ uncommitted until the user approves after the reviewer re-gate.
   the NN; feature-importance leakage check after the first fit. Reviewer re-gates
   against these five points plus Section 2 on the final Phase 1 parquet.
 
+### Phase 2 — Tabular models (complete, reviewer-passed, user-approved)
+
+Every number from executed code, and the lead independently reran the test suite
+and recomputed the headline metrics and coverage from MLflow and predict.py.
+
+Comparison on the one fixed held-out test split (14,437 rows):
+
+| Model | MAE (EUR) | RMSE (EUR) | MAPE (%) |
+|---|---|---|---|
+| LightGBM baseline | 42,301 | 74,500 | 12.78 |
+| PyTorch tabular NN | 48,325 | 85,431 | 14.28 |
+
+Winner: LightGBM, on all three metrics. Stated plainly in
+`models/tabular/comparison.md`: the deep model loses to the baseline here, which
+is the expected outcome on tabular data, not a failure. LightGBM is the
+production model.
+
+Split: seeded (42), keyed on `asset_id`, persisted as
+`models/tabular/split_assignment.parquet` (git-tracked, the split contract).
+Sizes: train 46,198 / val 11,550 / test 14,437. A random split is appropriate
+because the data is 2018 cross-sectional (no forecast horizon) and the Phase 1
+dedupe already removed the same-asset-across-quarters near-duplicates. Split
+before any fitting; NN normalization stats train-only.
+
+Leakage check (directive 5): `unit_price_m2` and `price` excluded from the 38
+usable model features (`cnn_condition_score` dropped while 100% null).
+LightGBM gain shares read like real estate should: area_m2 56.7%,
+neighborhood_id 16.5%, bathrooms 10.5%. No single feature near-total, no
+leakage smell. Directives 1-4 all satisfied: retrained on the post-join
+parquet, `neighborhood_id` categorical (135 train levels), explicit "unknown"
+bucket in the NN for the 73 null neighborhoods, construction_year native null
+for LightGBM and imputed plus `year_missing` indicator for the NN.
+
+Confidence range v1: residual-based global 90% band from validation residuals,
+[-91,890, +97,963] EUR around the estimate. Test coverage 0.8992 (lead-verified
+on 14,437 rows), within a tenth of a percent of nominal. Known weakness, user-
+flagged: the band is homoscedastic, so a 90k studio and a 900k penthouse get the
+same absolute interval. Fix approved and in progress as a Phase 2 addendum, see
+open items.
+
+MLflow: experiment `phase2_tabular`, local file backend (`mlruns/`), runs
+`lightgbm_baseline` and `pytorch_tabular_nn` with val+test MAE/RMSE/MAPE, params,
+and split id. Production run tagged `is_production=true` (exactly one; stale tags
+cleared on retrain), artifacts under `production/`. `predict.py` resolves the
+production run by tag and returns `{estimate, low, high, interval_coverage}`.
+Env caveat: MLflow 3.14 blocks the file store unless `MLFLOW_ALLOW_FILE_STORE=true`;
+train.py and predict.py set it in-process.
+
+Artifact policy (user directive): git is not the model store. Binaries
+(`models/tabular/*.pt`, `*.txt`, `*.joblib`) are gitignored; MLflow holds the
+production copies. Code, comparison.md, metrics, and the split contract are
+committed.
+
+Root cause fixed, not worked around: importing LightGBM and PyTorch in one
+process on this Mac loads two OpenMP runtimes and deadlocks then SIGSEGVs
+(minimal repro confirmed). `train.py` is a coordinator that runs `train_lgbm.py`
+and `train_nn.py` as isolated subprocesses. That is the reason for the
+multi-file layout.
+
+Tests: 18 passed (11 data validation + 7 tabular: split disjointness and
+coverage, test size, leakage exclusion, predict estimate+range single and
+batch). Reviewer verdict: PASS, metrics reproduced to the digit.
+
+Commits: `4121580` PROJECT_HISTORY added, `7223937` governance rules,
+`efe024e` schema DISPLAY_COLUMNS fix, `7cb6f38` gitignore model binaries,
+`1e3875b` Phase 2 code, comparison, split contract, tests.
+
 ---
 
 ## 5. Decisions and governance log
@@ -116,8 +182,8 @@ uncommitted until the user approves after the reviewer re-gate.
 
 Phases run in order; the reviewer gates each against the spec's Section 2 before it is marked done.
 
-- **Phase 2 — Tabular models (ml-modeler, redo in progress).** LightGBM baseline vs PyTorch tabular NN, MLflow tracking, one fixed held-out split, honest MAE/RMSE/MAPE comparison, save the winner as the production artifact. First run discarded as stale (pre-join data); retraining now under the five directives above. No commit until the user approves.
-- **Phase 3 — Explainability (explainability).** SHAP over the production model, per-prediction plots and plain-language driver text, cached for the dashboard.
+- **Phase 2 — Tabular models. DONE** (see build log). Addendum in progress: per-property quantile intervals.
+- **Phase 3 — Explainability (explainability, in progress).** SHAP over the production model via TreeExplainer (exact on trees, no sampling), resolved through the MLflow production tag, predict.py imported read-only. Per-prediction plots and plain-language driver text, global and per-prediction SHAP caches for instant dashboard rendering. shap 0.52.0 and matplotlib 3.11.0 added by the lead through the sole-writer flow (the agent hit the missing dependency, paused, and asked instead of editing, as the governance rule intends). Write isolation with the parallel addendum: ml-modeler owns models/tabular/, explainability owns models/explain/.
 - **Phase 4 — Vision (vision-modeler).** CNN transfer learning that outputs `cnn_condition_score`, fed back as a feature; retrain and re-compare. Documented fallback if clean images are hard to source.
 - **Phase 5 — Agentic copilot (agent-builder).** LangGraph graph: comparables, valuation, energy, narrative agents. Free LLM backend (Gemini free tier or Ollama).
 - **Phase 6 — Dashboard (frontend).** Streamlit multipage on the MadridRental base: Market Explorer, Value Estimator with SHAP, Comparables Map, Energy/ESG, Copilot Report.
@@ -127,11 +193,18 @@ Phases run in order; the reviewer gates each against the spec's Section 2 before
 
 ### Open items and pending flags
 
-- **Phase 2 redo directives** (construction_year null handling, neighborhood_id
-  categorical, 73 unknown neighborhoods, retrain on final parquet, importance-based
-  leakage recheck) are dispatched to the ml-modeler and pending its report plus the
-  reviewer re-gate. The `neighborhood_name` schema exclusion is already applied
-  (`DISPLAY_COLUMNS`, 39 model features).
+- **Quantile-interval addendum (in progress, ml-modeler).** Replace the global
+  homoscedastic band with LightGBM quantile regression at alpha 0.05 and 0.95 so
+  intervals widen with price. User-flagged failure modes to guard: quantile
+  crossing (q05 above q95) and band exclusion (point estimate outside the band,
+  since the three models are independent). predict.py enforces
+  low <= estimate <= high, the correction count on test is reported (more than a
+  handful means the quantile fits need another look), the new empirical test
+  coverage is reported next to the old 0.8992, and `test_interval_coverage` is
+  logged to MLflow (v1 returned it but never logged it). Ordering invariant gets
+  its own test.
+- **Phase 3 commit approved in advance** (user): commit Phase 3 deliverables plus
+  the requirements.txt shap/matplotlib addition once the reviewer passes it.
 - **Kaggle.** Add `~/.kaggle/kaggle.json` if the secondary source is wanted later.
 - **CI data strategy.** Decide the test fixture (small committed sample parquet) so CI does not need R at runtime.
 
