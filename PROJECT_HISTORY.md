@@ -203,8 +203,24 @@ Phases run in order; the reviewer gates each against the spec's Section 2 before
   coverage is reported next to the old 0.8992, and `test_interval_coverage` is
   logged to MLflow (v1 returned it but never logged it). Ordering invariant gets
   its own test.
-- **Phase 3 commit approved in advance** (user): commit Phase 3 deliverables plus
-  the requirements.txt shap/matplotlib addition once the reviewer passes it.
+- **Phase 6 display rule (permanent, user-set).** The dashboard and the copilot
+  surface the MEASURED interval coverage and never print a bare "90% confidence
+  interval" over a band that does not cover 90%. If the conformal band lands near
+  0.90 measured, "90%" becomes an honest label, but the rule is
+  display-measured-never-inflate, forever. Goes verbatim into the frontend and
+  agent-builder dispatches.
+- **CQR in progress (ml-modeler).** The raw [q05, q95] band has the right
+  per-property shape (18.8x width scaling, 0 crossings, 55 of 14,437 rows
+  ordering-clipped) but undercovers: 0.8267 vs 0.90 nominal (old global band:
+  0.8992, width ~190k flat; quantile band mean width 171,180). User-prescribed
+  fix: standard conformalized quantile regression. Conformity scores
+  E_i = max(q05 - y, y - q95) on the validation split, Q = ceil((n+1)*0.90)/n
+  empirical quantile, band [q05 - Q, q95 + Q]. Finite-sample marginal coverage
+  guarantee; cost is honest extra width. Report post-conformal test coverage,
+  width, and the same cheap/expensive example pair.
+- **Commit plan (user-approved):** once CQR lands and the reviewer re-passes,
+  commit the interval addendum together with the Phase 3 deliverables and the
+  shap/matplotlib requirements lines.
 - **Kaggle.** Add `~/.kaggle/kaggle.json` if the secondary source is wanted later.
 - **CI data strategy.** Decide the test fixture (small committed sample parquet) so CI does not need R at runtime.
 
