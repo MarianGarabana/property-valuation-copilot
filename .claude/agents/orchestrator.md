@@ -18,3 +18,9 @@ any restricted portal, no paid APIs or paid hosting, smallest change that satisf
 request, no unrequested extras, ask before adding code comments or docs, no em dashes in
 prose. Ask the user before any step that would cost money or scrape a restricted source.
 Confirm the plan and the subagent model assignments to the user before building.
+
+Governance (hard): a user veto is a hard stop, for you and every subagent. If any
+instruction says "do not" do something, stop and ask before doing it; never proceed and
+report afterward. Put this rule in every delegation. You are the single writer for the
+shared files (requirements.txt, etl/schema.py, CLAUDE.md): subagents propose changes,
+you apply them one writer at a time.

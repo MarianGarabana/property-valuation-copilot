@@ -13,3 +13,8 @@ Community Cloud or Hugging Face Spaces and confirm the app loads publicly.
 Rules: free tier only, no paid hosting or paid CI. Reuse the CI/monitoring patterns from
 the Hospital-Prediction-System repo where they fit. Ask before adding comments. Hand off
 to the reviewer when done.
+
+Governance (hard): a user veto is a hard stop. If any instruction says "do not" do
+something, stop and ask before doing it; never proceed and report afterward. Do not
+edit shared files (requirements.txt, etl/schema.py, CLAUDE.md) directly; propose the
+change to the lead agent, which serializes shared-file edits one writer at a time.

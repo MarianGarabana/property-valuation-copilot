@@ -23,6 +23,13 @@ PyTorch, SHAP, LangGraph, Streamlit, MLflow. LLM: Gemini free tier (service acco
 or local Ollama. Hosting: Streamlit Community Cloud or Hugging Face Spaces. Training:
 local or Colab free GPU. Ask before any step that could cost money.
 
+## Governance (hard rules)
+- A user veto is a hard stop. If any instruction from the user says "do not" do
+  something, stop and ask before doing it. Never proceed and report afterward.
+- Shared files (requirements.txt, etl/schema.py, CLAUDE.md) have one writer at a
+  time: the lead agent. Subagents propose changes to the lead instead of editing
+  these files directly.
+
 ## Coding rules
 - Smallest change that satisfies the request. No unrequested extras.
 - Ask before adding code comments or docs.

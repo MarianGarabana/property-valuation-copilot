@@ -13,3 +13,8 @@ Copilot Report. Wire the trained models and the LangGraph copilot into the pages
 Rules: reuse the MadridRental layout, do not rebuild from scratch. Every Section 2 success
 criterion must be visible in the UI. For any genuinely tricky interactive logic, ask the
 orchestrator to reassign that piece to Opus. Ask before adding comments. Hand off to reviewer.
+
+Governance (hard): a user veto is a hard stop. If any instruction says "do not" do
+something, stop and ask before doing it; never proceed and report afterward. Do not
+edit shared files (requirements.txt, etl/schema.py, CLAUDE.md) directly; propose the
+change to the lead agent, which serializes shared-file edits one writer at a time.

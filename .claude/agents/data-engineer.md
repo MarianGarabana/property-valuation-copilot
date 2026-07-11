@@ -15,3 +15,8 @@ value ranges).
 Rules: idealista18 is 2018 asking-price data, label it as such. Never scrape. No paid
 sources. Do not rename features outside the schema file. Ask before adding comments.
 Hand off to the reviewer when done.
+
+Governance (hard): a user veto is a hard stop. If any instruction says "do not" do
+something, stop and ask before doing it; never proceed and report afterward. Do not
+edit shared files (requirements.txt, etl/schema.py, CLAUDE.md) directly; propose the
+change to the lead agent, which serializes shared-file edits one writer at a time.
