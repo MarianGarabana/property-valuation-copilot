@@ -262,17 +262,33 @@ Phases run in order; the reviewer gates each against the spec's Section 2 before
      Two out-of-web changes made and re-gated (both PASS): additive optional coordinates on the comparables payload (a deployed Vercel app cannot read the local parquet; latitude/longitude per comp, subject_latitude/subject_longitude on the response; spot-checked against the parquet; no existing field changed), and a module-level threading.Lock around the matplotlib waterfall render in models/explain/shap_explainer.py (matplotlib global state is not thread-safe; concurrent API requests raced with IndexError inside shap.plots.waterfall; reviewer reproduced 8 failures in 16 concurrent renders without the lock, 0 with it; Streamlit never hit it because it called endpoints sequentially). Known ceiling, user-noted: the lock serializes SHAP rendering; if throughput ever matters, switch the render to matplotlib's object-oriented API (explicit Figure, no global pyplot state) and drop the lock. Fine as-is for a demo.
      User-recorded judgment call: the agent was told to render a SHAP waterfall and refused on honesty grounds; a bridge chart from only the top 5 of 38 features fabricates the intermediate cumulative totals it appears to show. Diverging bars with an on-screen top-5 note are the honest chart. Marian confirmed the override was correct.
   The framework-agnostic honesty rules for the API and every frontend are in the spec's Section 2 Phase 6B addendum. Deploy folds into Phase 7, all free: API Docker image on Hugging Face Spaces, Next.js on Vercel Hobby, CORS from Vercel to the Space, backend URL as a frontend env var, cold start noted in the README.
-- **Phase 7 — MLOps and deploy: BUILT AND LIVE, reviewer gate pending.** Live
+- **Phase 7 — MLOps and deploy: DONE, reviewer-passed (second gate; the first
+  FAILED on a red CI and a false "CI green" history claim, both fixed and
+  recorded).** Live
   stack: API https://property-valuation-api-f5et.onrender.com (Render free,
   Docker), frontend https://web-two-ebon-18.vercel.app (Vercel Hobby), model
   bundle MarianGarabana/property-valuation-model at immutable revision e7ab195.
   CI: red at the first Phase 7 gate (the pred_contrib commit dropped a blank
   line, flake8 E302, and the lead recorded "CI green" without rechecking after
   that push; reviewer caught both the red runs and the false claim). Fixed and
-  re-verified green before the re-gate. Drift check in mlops/drift.py. CORS pinned to the Vercel origin and verified refused for a
-  foreign origin. Deployed number identity exact at full precision on the
-  reference asset. The old CI note about R and a sample parquet was moot: the
-  full parquet has been git-tracked since Phase 1.
+  re-verified green before the re-gate. Drift check in mlops/drift.py. CORS
+  pinned to both Vercel origins (the renamed canonical alias
+  property-valuation-copilot.vercel.app and the original random URL) and
+  verified refused for a foreign origin. Deployed number identity exact at full
+  precision on the reference asset. The old CI note about R and a sample
+  parquet was moot: the full parquet has been git-tracked since Phase 1.
+  Post-gate production fix (user-found): a sleeping Render free instance
+  answers an immediate 502 (x-render-routing: no-deploy) instead of hanging,
+  which bypassed the frontend's waking treatment and showed the hard
+  fail-closed error on a cold first visit. Fix: the web client retries 502,
+  503, and network-level failures with 3-5s backoff inside the one 90s budget,
+  shows the waking notice from the first retry, and never retries 4xx or
+  contract failures; verified against a stub that serves 502 for 15s then
+  proxies (schedule observed 502, 502, 200), and a 404 still fails instantly
+  with no retry. Cold-start copy no longer names Hugging Face. Vercel
+  operational note: the manually assigned canonical alias does NOT follow
+  --prod deploys; every production deploy needs a vercel alias set step (or
+  moving the alias to a project domain).
   Deploy war stories, each measured and fixed at the root:
   1. HF paywalled Docker Spaces mid-deploy (see governance log); Render
      substituted.
