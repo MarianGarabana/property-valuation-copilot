@@ -11,6 +11,8 @@ models/tabular/*.pt
 models/tabular/*.txt
 models/tabular/*.joblib
 models/explain/cache/
+mlops/drift_report.json
+mlops/drift_report.md
 models/image/features_subset.npz
 models/image/tile_assignment.parquet
 models/image/subset_manifest.parquet
