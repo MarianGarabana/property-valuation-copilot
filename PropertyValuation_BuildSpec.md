@@ -29,6 +29,14 @@ The build is done when:
 - Model training is tracked (MLflow), and there is a basic drift/monitoring check and CI.
 - The app is deployed to a free host (Streamlit Community Cloud or Hugging Face Spaces) and loads publicly.
 
+Phase 6B addendum (user-approved, added 2026-07-12; Phase 8 reviews against it):
+
+- The Streamlit dashboard is the internal/demo deliverable and passes its gate on rules A-H; it is not held for the production track.
+- A FastAPI REST API with Pydantic response models wraps predict.py and the LangGraph copilot (endpoints: estimate with range and drivers, comparables, energy, narrative). The API is the single source of truth for every number; the Streamlit app is refactored to consume it and must show numbers identical to the direct-call path.
+- A customer-facing web frontend (Next.js, TypeScript, Tailwind, shadcn/ui, Zod-validated API types, MapLibre or deck.gl map) consumes the same API.
+- Honesty rules apply framework-agnostically to the API and every frontend: no client-side recomputation, re-rounding, or reformatting of an API number into a different value; every estimate shows its range and SHAP drivers or nothing (fail-closed); the interval is labeled with the measured coverage, never a bare "90%"; the 2018-prototype caveat is visible; the energy impact is shown as an illustrative estimate, not a measured fact; cnn_condition_score never appears in the live valuation flow (a clearly labeled "evaluated and dropped" demo page only).
+- Deploy folds into Phase 7 and stays free: the API as a Docker image on Hugging Face Spaces, the web frontend on Vercel Hobby, CORS configured so the Vercel app reaches the Space, backend URL as a frontend environment variable, free-tier cold start noted in the README.
+
 Honesty constraints to keep in the code and docs: idealista18 is 2018 data, so the app is a prototype on historical data, not a live market feed. Do not scrape idealista; its API is partner-restricted. State both facts in the README.
 
 ## 3. Data (all free)
