@@ -39,6 +39,8 @@ The project is general and portfolio-facing. It maps to real estate valuation, r
 | frontend | Sonnet 5 | medium |
 | mlops | Opus 4.8 | medium |
 | reviewer | Opus 4.8 | high (Phase 8 final pass on Fable 5) |
+| api-engineer (Phase 6B.1) | Opus 4.8 | medium |
+| web-frontend (Phase 6B.2) | Fable 5 | high |
 
 Routing logic: Fable 5 for the hard, long-horizon nodes (planning, vision, agent graph) where a wrong call is expensive; Opus 4.8 as the default for modeling and review; Sonnet 5 for mechanical implementation. Fable is about 2x Opus per token, so it is spent only where it pays off.
 
@@ -175,6 +177,7 @@ Commits: `4121580` PROJECT_HISTORY added, `7223937` governance rules,
 - **Geo dependency.** Original decision was no geo package: use coordinates plus the existing distance features, and derive a KMeans `location_cluster` only if a categorical was wanted. The data-engineer instead added shapely and did the full point-in-polygon join, then reported after the fact. Outcome: the result was kept, because 135 real barrios is a stronger and more interpretable location feature than KMeans clusters, shapely is small and maintained (not the heavy geopandas), the work was verified with a no-regression check, and nothing was committed. But the behavior was wrong.
 - **Governance rule added.** A user veto is a hard stop. Subagents stop and ask before doing anything an instruction said not to do; they never proceed and report after. Reason: if agents override a "no" when they think they know better, control of the build is lost, and the next overridden decision may be a bad one.
 - **Shared-file edits serialized.** Two agents edited `requirements.txt` concurrently in Phase 1. It stayed coherent by luck. From now on, edits to shared files (`requirements.txt`, `schema.py`, `CLAUDE.md`) route through the orchestrator, one writer at a time.
+- **Commit approval (user-set, 2026-07-12).** No git commit until Marian approves. The lead stages and reports what would be committed; the commit itself waits for her explicit go.
 
 ---
 
@@ -250,7 +253,11 @@ Phases run in order; the reviewer gates each against the spec's Section 2 before
      the 535-house fallback set; either drop the feature or ship the CNN as a
      disclosed standalone demo, never a value-model input.
 - **Phase 5 — Agentic copilot. DONE, reviewer-passed (see build log).** LangGraph graph: comparables, valuation, energy, narrative agents. Free LLM backend (Ollama or Gemini free tier) with a validated template fallback.
-- **Phase 6 — Dashboard (frontend).** Streamlit multipage on the MadridRental base: Market Explorer, Value Estimator with SHAP, Comparables Map, Energy/ESG, Copilot Report.
+- **Phase 6 — Dashboard (frontend).** Built (seven pages on the MadridRental base, commit c5aad04), lead-verified in the browser, honesty rules A-H wired into the UI. Remaining before DONE: design polish pass and the reviewer gate. The Streamlit app is the internal/demo deliverable and passes on its own; it is not held for Phase 6B.
+- **Phase 6B — Production track (user-directed, added 2026-07-12).** Two steps, each reviewer-gated, run after the Phase 6 gate:
+  1. api-engineer (Opus 4.8, medium): FastAPI REST API with Pydantic response models wrapping predict.py and the LangGraph copilot (estimate+range+drivers, comparables, energy, narrative). The API becomes the single source of truth for every number. Streamlit refactored to call the API; the Phase 6 reviewer re-runs on Streamlit to confirm identical numbers through the API boundary. Host-agnostic build, Docker image targeting Hugging Face Spaces.
+  2. web-frontend (Fable 5, high): customer-facing Next.js + TypeScript + Tailwind + shadcn/ui frontend consuming the API with Zod-validated types, MapLibre or deck.gl map. Portfolio-grade UI.
+  The framework-agnostic honesty rules for the API and every frontend are in the spec's Section 2 Phase 6B addendum. Deploy folds into Phase 7, all free: API Docker image on Hugging Face Spaces, Next.js on Vercel Hobby, CORS from Vercel to the Space, backend URL as a frontend env var, cold start noted in the README.
 - **Phase 7 — MLOps and deploy (mlops).** MLflow registry, data-drift check, GitHub Actions CI, deploy to a free host. CI note: it now depends on base R plus shapely, so commit a small sample parquet as a test fixture instead of regenerating through R on the runner.
 - **Phase 8 — Final review (reviewer on Fable 5).** Full pass against Section 2, honesty constraints visible, no paid dependency, model card and demo script.
 - **Stretch (after Phase 8).** RL module (budget-constrained re-valuation ordering or retrofit sequencing), Barcelona/Valencia expansion, physical-climate-risk overlay.
