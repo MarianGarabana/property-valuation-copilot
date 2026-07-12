@@ -82,9 +82,14 @@ if subject is None:
     st.info("Select an existing listing or enter a property, then estimate its value.")
     st.stop()
 
+@st.cache_data(show_spinner=False)
+def _cached_explain(subject):
+    return shap_explain.explain(subject)
+
+
 with st.spinner("Computing estimate, range, and SHAP drivers..."):
     try:
-        explained = shap_explain.explain(subject)
+        explained = _cached_explain(subject)
         interval = tabular_predict.predict_one(subject)
     except Exception as exc:
         st.error(f"Could not produce a valuation for this property: {exc}")
