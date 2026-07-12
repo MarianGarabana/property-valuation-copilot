@@ -50,18 +50,30 @@ The public deployment is two free-tier hosts:
   It is the single source of truth for every number. Hugging Face was the
   original target but paywalled Docker Spaces for new free accounts mid-deploy,
   so Render substitutes as the free host.
-- The Next.js frontend runs on Vercel Hobby (personal, non-commercial use) and
-  reads the API base URL from the NEXT_PUBLIC_API_URL environment variable.
+- The Next.js frontend runs on Vercel Hobby (personal, non-commercial use) at
+  https://property-valuation-copilot.vercel.app and reads the API base URL from
+  the NEXT_PUBLIC_API_URL environment variable.
 
 A browser talks to the Vercel app, which talks to the Render service. CORS on
 the service is set through the API_CORS_ORIGINS variable to the exact Vercel
 origin.
 
+Deploying the frontend: property-valuation-copilot.vercel.app is registered as
+a project domain (not a manually assigned deployment alias), so it follows
+every production deploy automatically. Deploy with:
+
+    vercel deploy --prod --yes --cwd web --build-env NEXT_PUBLIC_API_URL=<api-url>
+
+Do not assign the domain by hand with vercel alias set; a manual alias sticks
+to one deployment and silently serves a stale build after the next deploy.
+
 The free service sleeps after 15 minutes of inactivity. The first request after
-it sleeps has to wake the container (30 to 50 seconds on Render) and load the
-model (about 7 seconds measured) before it can answer. The frontend shows a
-waking state and gives up after a hard 90 second timeout, failing closed with no
-numbers rather than showing a partial result.
+it sleeps answers with an immediate 502 while the container wakes (30 to 50
+seconds on Render) and then loads the model (about 7 seconds measured). The
+frontend treats 502, 503, and network errors as a possible cold start and
+retries with backoff inside one 90 second budget, showing a waking state; real
+errors (4xx, contract failures) fail immediately. After the budget it fails
+closed with no numbers rather than showing a partial result.
 
 ## Model artifact delivery
 
