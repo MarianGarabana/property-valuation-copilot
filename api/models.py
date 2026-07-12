@@ -73,6 +73,8 @@ class Comparable(BaseModel):
     neighborhood_name: Optional[str] = None
     distance_km: float
     why: str
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 
 class ComparablesResponse(Envelope):
@@ -84,6 +86,8 @@ class ComparablesResponse(Envelope):
     price_max: float
     price_median: float
     max_distance_km: float
+    subject_latitude: Optional[float] = None
+    subject_longitude: Optional[float] = None
 
 
 class EnergyImpact(BaseModel):

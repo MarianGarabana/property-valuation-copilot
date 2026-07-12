@@ -12,6 +12,7 @@ for _p in (
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+import polars as pl
 from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,7 +22,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 import predict as tabular_predict
 import explain as tabular_explain
 from agents import comparables_agent, energy_agent
-from agents.data import get_subject
+from agents.data import get_subject, load_listings
 from agents.graph import run_copilot
 
 from api.models import (
@@ -108,8 +109,18 @@ def _build_estimate(subject, asset_id):
     )
 
 
+def _comp_coordinates(asset_ids):
+    rows = (
+        load_listings()
+        .filter(pl.col("asset_id").is_in(asset_ids))
+        .select(["asset_id", "latitude", "longitude"])
+    )
+    return {r["asset_id"]: (r["latitude"], r["longitude"]) for r in rows.iter_rows(named=True)}
+
+
 def _build_comparables(subject, asset_id):
     result = comparables_agent.run(subject)
+    coords = _comp_coordinates([c["asset_id"] for c in result["comps"]])
     comps = [
         Comparable(
             asset_id=c["asset_id"],
@@ -121,6 +132,8 @@ def _build_comparables(subject, asset_id):
             neighborhood_name=c.get("neighborhood_name"),
             distance_km=c["distance_km"],
             why=c["why"],
+            latitude=coords.get(c["asset_id"], (None, None))[0],
+            longitude=coords.get(c["asset_id"], (None, None))[1],
         )
         for c in result["comps"]
     ]
@@ -133,6 +146,8 @@ def _build_comparables(subject, asset_id):
         price_max=result["price_max"],
         price_median=result["price_median"],
         max_distance_km=result["max_distance_km"],
+        subject_latitude=subject.get("latitude"),
+        subject_longitude=subject.get("longitude"),
     )
 
 

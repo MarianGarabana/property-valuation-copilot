@@ -1,5 +1,6 @@
 import io
 import sys
+import threading
 from pathlib import Path
 
 EXPLAIN_DIR = Path(__file__).resolve().parent
@@ -18,6 +19,8 @@ import shap
 
 import predict as tabular_predict
 from labels import describe_feature
+
+_PLOT_LOCK = threading.Lock()
 
 _EXPLAINER = None
 _EXPLAINER_RUN_ID = None
@@ -95,10 +98,11 @@ def render_waterfall_png(shap_row, base_value, feature_names, raw_row, top_n=10)
         data=np.array([raw_row.get(name) for name in feature_names]),
         feature_names=feature_names,
     )
-    fig = plt.figure()
-    shap.plots.waterfall(explanation, max_display=top_n, show=False)
-    buf = io.BytesIO()
-    fig.savefig(buf, format="png", bbox_inches="tight")
-    plt.close(fig)
+    with _PLOT_LOCK:
+        fig = plt.figure()
+        shap.plots.waterfall(explanation, max_display=top_n, show=False)
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", bbox_inches="tight")
+        plt.close(fig)
     buf.seek(0)
     return buf.getvalue()
