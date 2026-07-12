@@ -184,7 +184,7 @@ Phases run in order; the reviewer gates each against the spec's Section 2 before
 
 - **Phase 2 — Tabular models. DONE**, including the CQR per-property interval addendum (see build log).
 - **Phase 3 — Explainability. DONE** (see build log). shap 0.52.0 and matplotlib 3.11.0 added by the lead through the sole-writer flow (the agent hit the missing dependency, paused, and asked instead of editing, as the governance rule intends).
-- **Phase 4 — Vision (vision-modeler, in progress).** Sourcing plan user-approved:
+- **Phase 4 — Vision. DONE (closed at the gate, see build log).** Sourcing plan user-approved:
   PNOA aerial orthophoto tiles from IGN Spain (free WMTS, CC-BY 4.0 verified from
   the license document, attribution required in README and UI), keyed lat/lon per
   asset_id, ~67k tiles for all 72,185 listings. Label is a stated proxy: the CNN
@@ -249,7 +249,7 @@ Phases run in order; the reviewer gates each against the spec's Section 2 before
   4. Fallback stance: if PNOA falls through, no synthetic per-listing score from
      the 535-house fallback set; either drop the feature or ship the CNN as a
      disclosed standalone demo, never a value-model input.
-- **Phase 5 — Agentic copilot (agent-builder).** LangGraph graph: comparables, valuation, energy, narrative agents. Free LLM backend (Gemini free tier or Ollama).
+- **Phase 5 — Agentic copilot. DONE, reviewer-passed (see build log).** LangGraph graph: comparables, valuation, energy, narrative agents. Free LLM backend (Ollama or Gemini free tier) with a validated template fallback.
 - **Phase 6 — Dashboard (frontend).** Streamlit multipage on the MadridRental base: Market Explorer, Value Estimator with SHAP, Comparables Map, Energy/ESG, Copilot Report.
 - **Phase 7 — MLOps and deploy (mlops).** MLflow registry, data-drift check, GitHub Actions CI, deploy to a free host. CI note: it now depends on base R plus shapely, so commit a small sample parquet as a test fixture instead of regenerating through R on the runner.
 - **Phase 8 — Final review (reviewer on Fable 5).** Full pass against Section 2, honesty constraints visible, no paid dependency, model card and demo script.
@@ -314,6 +314,86 @@ that exercises a fresh artifact does not prove the shipped artifact loads.
 Tests: 28 passing total (12 data validation, 9 tabular including the CQR
 coverage-tolerance and ordering-invariant tests, 7 explain).
 
+### Phase 4 — Vision (complete, closed at the gate)
+
+Full record in the roadmap entry below and in `models/image/README.md`. Summary:
+leakage-controlled CNN probe built and evaluated on a 20k PNOA tile subset,
+signal above chance but weak (tile AUC 0.5929), measured redundant against the
+existing condition feature in a scoped ablation (MAE +303, RMSE +386, MAPE
++0.10pp on the same 4,048 val listings), dropped from the value model per the
+honest-AVM rule. Ships as a documented capability demo. Code committed under
+`models/image/`; the derived artifacts (`tile_assignment.parquet`,
+`subset_manifest.parquet`, `features_subset.npz`) are deterministic outputs of
+the scripts and gitignored per the artifact policy (git is not the model
+store). Tile images live in `data/images/` (gitignored).
+
+### Phase 5 — Agentic copilot (complete, reviewer-passed)
+
+Built in `agents/`: LangGraph graph (`graph.py`) fanning out from START to
+comparables, valuation, and energy nodes, all joining at narrative, then END.
+State is a TypedDict; tool-node failures are caught per node and recorded in an
+additive `errors` list, so one failed agent degrades the report instead of
+killing it. The narrative fails closed if valuation is missing: no number ever
+renders without its range and drivers.
+
+- `comparables_agent.py`: same property_type pool, haversine distance in
+  polars expressions, score = distance_km + area_diff/20 + 0.7 * rooms_diff,
+  top 5, deterministic tie-break on asset_id. Every comp carries a "why" line
+  and its real asset_id.
+- `valuation_agent.py`: thin composition of Phase 2 `predict.py` (estimate +
+  CQR range + measured coverage) and Phase 3 `explain.py` (SHAP drivers).
+- `energy_agent.py`: rule-based EPC proxy from build year and condition
+  (C >= 2007 or new, E 1980-2006, F pre-1980 with the energy-risk flag,
+  unknown for missing/invalid years). Value impact is the observed median
+  asking EUR/m2 gap between pre-1980 and post-2006 stock, barrio-scoped when
+  both segments have >= 20 listings, else citywide, always with scope and
+  sample sizes, always worded as an observed asking-price difference, never a
+  measured rating effect.
+- `narrative_agent.py`: builds a deterministic facts list, prompts the LLM to
+  phrase it, then validates the output: number-fidelity gate (every figure in
+  the prose must appear in the facts; regex handles comma grouping and
+  decimals), forbidden characters (em/en dash, curly quotes), banned-word
+  list, required verbatim sentences (estimate, range, measured coverage,
+  2018 caveat, energy disclaimer). Any violation falls back to a labeled
+  template assembled directly from the facts, which must pass the same
+  validation or the node raises. Reviewer stress-tested the regex on
+  decimals, comma-grouped numbers, and percentages: no false accepts.
+- `llm.py`: backend detection at call time. Local Ollama first, then Gemini
+  free tier via service account, else template. `COPILOT_DISABLE_LLM=1`
+  forces the template path for deterministic tests. No paid API.
+
+The three user-set LLM-boundary rules are implemented and test-covered:
+number fidelity with fallback, energy impact grounded and disclaimed, 2018
+caveat inline in every narrative. The Phase 6 display rule is already honored:
+the narrative prints "90% nominal interval that covered 90.3% of held-out test
+properties when measured", never a bare 90% claim.
+
+End-to-end evidence: `agents/run_samples.py` ran the graph on three real
+listings at the 10th/50th/90th price percentiles (cheap Pueblo Nuevo flat, mid
+Numancia duplex, expensive Lista flat). All three narratives combined
+estimate + range + coverage, SHAP drivers, five verified comparables, and the
+energy band with its disclaimed impact. In this environment no LLM backend is
+reachable, so the labeled template path is the live path; that is the designed
+honest outcome.
+
+Defect found and fixed during closeout: `models/explain/labels.py` printed the
+distance features as meters with zero decimals ("distance to the city center
+(4 m)") while the data is in kilometers (mean 4.5, max 13.3 km to center).
+Root cause: the original idealista18 docs wording said meters and Phase 3
+copied it; the schema docstrings were corrected to kilometers and labels.py
+now formats "{v:.1f} km". Display-only, no model or cache artifact touched.
+
+Shared-file edits, lead-authored per the sole-writer rule: `requirements.txt`
++langgraph==1.2.9, `etl/schema.py` distance-unit docstrings meters to
+kilometers (verified against the data), `.gitignore` +data/images/ and the
+derived image artifacts.
+
+Tests: 38 passing total (12 data validation, 9 tabular, 7 explain, 10
+agents). Agent tests cover end-to-end graph run, estimate/range presence, measured coverage,
+writing rules, 2018 caveat, energy wording with segment minimums, number-
+injection rejection, comps verified against the parquet, band rules, and the
+forced template fallback. Reviewer verdict: PASS.
+
 ### Open items and pending flags
 
 - **Phase 6 display rule (permanent, user-set).** The dashboard and the copilot
@@ -322,15 +402,10 @@ coverage-tolerance and ordering-invariant tests, 7 explain).
   0.90 measured, "90%" becomes an honest label, but the rule is
   display-measured-never-inflate, forever. Goes verbatim into the frontend and
   agent-builder dispatches.
-- **Phase 5 LLM-boundary rules (user-set, hard).** The narrative LLM phrases the
-  deterministic payload and nothing else: no introduced, computed, or altered
-  numbers. A validation step extracts every figure from the generated prose and
-  fails the node to the labeled template fallback if any figure is not in the
-  structured payload. The energy value impact is either grounded in a computed
-  relationship (price vs derived band, or SHAP of energy-related features) or
-  explicitly labeled an illustrative estimate; never stated as measured fact.
-  Every narrative carries the 2018-prototype caveat inline. Tests cover all
-  three.
+- **Phase 5 LLM-boundary rules: implemented and test-covered (see Phase 5 build
+  log).** They remain standing rules for any future narrative change: number
+  fidelity with template fallback, energy impact grounded and disclaimed, 2018
+  caveat inline.
 - **Kaggle.** Add `~/.kaggle/kaggle.json` if the secondary source is wanted later.
 - **CI data strategy.** Decide the test fixture (small committed sample parquet) so CI does not need R at runtime.
 - **Deploy cache strategy (Phase 7).** The SHAP cache is gitignored (derived,
