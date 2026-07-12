@@ -19,6 +19,8 @@ from agents.narrative_agent import (
     validate_narrative,
 )
 
+pytestmark = pytest.mark.local_only
+
 
 @pytest.fixture(scope="module")
 def listings():

@@ -24,6 +24,8 @@ BANNED_WORDS = [
     "realm", "landscape", "testament", "underscore",
 ]
 
+pytestmark = pytest.mark.local_only
+
 
 @pytest.fixture(scope="module")
 def listings():

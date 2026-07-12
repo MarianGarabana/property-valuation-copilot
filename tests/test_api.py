@@ -31,6 +31,8 @@ ASSET_ID = "A15019136831406238029"
 client = TestClient(app)
 client_no_reraise = TestClient(app, raise_server_exceptions=False)
 
+pytestmark = pytest.mark.local_only
+
 
 @pytest.fixture(scope="module")
 def subject():

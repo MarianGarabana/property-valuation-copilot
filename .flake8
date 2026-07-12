@@ -1,0 +1,20 @@
+[flake8]
+max-line-length = 100
+extend-ignore = E203, E402, E501
+exclude =
+    .git,
+    __pycache__,
+    .venv,
+    venv,
+    env,
+    reference,
+    web,
+    build,
+    dist,
+    .ipynb_checkpoints,
+    node_modules
+per-file-ignores =
+    models/tabular/predict.py:F401
+    models/tabular/train.py:F401
+    models/image/download_tiles.py:F401
+    models/image/train_subset_cnn.py:F401

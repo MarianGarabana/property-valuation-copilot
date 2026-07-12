@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    name: Lint and tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install dependencies
+        run: pip install -r api/requirements.txt pytest==9.1.1 flake8
+      - name: Lint
+        run: flake8 .
+      - name: Unit tests (model-free subset; model-output tests are local-only)
+        run: python -m pytest -q -m "not local_only"
+
+  web:
+    name: Web build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install dependencies
+        run: npm ci
+      - name: Generate API types from committed openapi.json
+        run: npx openapi-zod-client openapi.json -o src/lib/api/generated.ts --export-schemas --export-types
+      - name: Build
+        run: npm run build
+      - name: Contrast check
+        run: node scripts/contrast-check.mjs

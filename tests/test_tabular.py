@@ -15,6 +15,8 @@ import split as split_module  # noqa: E402
 EXPECTED_TEST_FRACTION = 0.20
 FRACTION_TOLERANCE = 0.01
 
+pytestmark = pytest.mark.local_only
+
 
 @pytest.fixture(scope="module")
 def assignment() -> pl.DataFrame:
