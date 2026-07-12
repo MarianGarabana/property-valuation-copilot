@@ -8,11 +8,10 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TABULAR_DIR = REPO_ROOT / "models" / "tabular"
 EXPLAIN_DIR = REPO_ROOT / "models" / "explain"
-ETL_DIR = REPO_ROOT / "etl"
-for p in (TABULAR_DIR, EXPLAIN_DIR, ETL_DIR):
+for p in (TABULAR_DIR, EXPLAIN_DIR, REPO_ROOT):
     sys.path.insert(0, str(p))
 
-import schema  # noqa: E402
+from etl import schema  # noqa: E402
 import predict as predict_module  # noqa: E402
 import shap_explainer  # noqa: E402
 import cache as cache_module  # noqa: E402

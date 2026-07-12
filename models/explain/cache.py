@@ -3,8 +3,8 @@ from pathlib import Path
 
 EXPLAIN_DIR = Path(__file__).resolve().parent
 TABULAR_DIR = EXPLAIN_DIR.parents[0] / "tabular"
-ETL_DIR = EXPLAIN_DIR.parents[1] / "etl"
-for p in (str(TABULAR_DIR), str(ETL_DIR), str(EXPLAIN_DIR)):
+REPO_ROOT = EXPLAIN_DIR.parents[1]
+for p in (str(TABULAR_DIR), str(REPO_ROOT), str(EXPLAIN_DIR)):
     if p not in sys.path:
         sys.path.insert(0, p)
 
@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 import polars as pl
 
-import schema
+from etl import schema
 from split import load_split
 import shap_explainer
 

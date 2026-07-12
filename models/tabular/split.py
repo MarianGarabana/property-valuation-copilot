@@ -5,10 +5,10 @@ import polars as pl
 from sklearn.model_selection import train_test_split
 
 TABULAR_DIR = Path(__file__).resolve().parent
-ETL_DIR = TABULAR_DIR.parents[1] / "etl"
-sys.path.insert(0, str(ETL_DIR))
+REPO_ROOT = TABULAR_DIR.parents[1]
+sys.path.insert(0, str(REPO_ROOT))
 
-import schema  # noqa: E402
+from etl import schema  # noqa: E402
 
 SPLIT_SEED = 42
 TEST_FRACTION = 0.20

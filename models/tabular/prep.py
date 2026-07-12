@@ -6,10 +6,10 @@ import pandas as pd
 import polars as pl
 
 TABULAR_DIR = Path(__file__).resolve().parent
-ETL_DIR = TABULAR_DIR.parents[1] / "etl"
-sys.path.insert(0, str(ETL_DIR))
+REPO_ROOT = TABULAR_DIR.parents[1]
+sys.path.insert(0, str(REPO_ROOT))
 
-import schema  # noqa: E402
+from etl import schema  # noqa: E402
 from split import load_split  # noqa: E402
 
 PLACEHOLDER_NULL_FEATURES = ["cnn_condition_score"]

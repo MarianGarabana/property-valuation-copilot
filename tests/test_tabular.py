@@ -6,11 +6,10 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TABULAR_DIR = REPO_ROOT / "models" / "tabular"
-ETL_DIR = REPO_ROOT / "etl"
 sys.path.insert(0, str(TABULAR_DIR))
-sys.path.insert(0, str(ETL_DIR))
+sys.path.insert(0, str(REPO_ROOT))
 
-import schema  # noqa: E402
+from etl import schema  # noqa: E402
 import split as split_module  # noqa: E402
 
 EXPECTED_TEST_FRACTION = 0.20

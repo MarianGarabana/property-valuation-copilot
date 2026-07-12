@@ -10,10 +10,10 @@ from pathlib import Path
 import polars as pl
 import pytest
 
-ETL_DIR = Path(__file__).resolve().parents[1] / "etl"
-sys.path.insert(0, str(ETL_DIR))
+REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT))
 
-import schema  # noqa: E402
+from etl import schema  # noqa: E402
 
 CONDITIONS = {"new", "needs_renovation", "good"}
 PROPERTY_TYPES = {"studio", "duplex", "flat"}
