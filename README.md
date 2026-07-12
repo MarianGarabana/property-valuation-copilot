@@ -18,6 +18,12 @@ a CNN, and writes a review-ready valuation narrative through a LangGraph copilot
 Polars, scikit-learn, LightGBM, PyTorch, SHAP, LangGraph, Streamlit, MLflow. Free tier
 only: no paid APIs, hosting, or CI.
 
+## Deployment honesty
+
+The REST API is unauthenticated by design. This is a free portfolio demo, so the API
+is open and has no API key or rate limit. A real deployment would put an API key or an
+auth proxy in front of it before exposing it to the public internet.
+
 ## Status
 
 Phase 0 (setup) complete. Build phases 1 to 8 pending; see
