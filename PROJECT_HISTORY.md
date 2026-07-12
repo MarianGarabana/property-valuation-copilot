@@ -406,6 +406,12 @@ forced template fallback. Reviewer verdict: PASS.
   log).** They remain standing rules for any future narrative change: number
   fidelity with template fallback, energy impact grounded and disclaimed, 2018
   caveat inline.
+- **LLM live-path check before Phase 8 (user-set, scheduled).** The narrative
+  LLM path has never executed in this environment (no backend reachable); only
+  the template fallback has run. Before the Phase 8 final review: start Ollama
+  once, run real narratives through it, judge the phrasing quality, and record
+  how often the LLM output trips the validator and falls back to the template.
+  Not blocking Phase 6 or 7.
 - **Kaggle.** Add `~/.kaggle/kaggle.json` if the secondary source is wanted later.
 - **CI data strategy.** Decide the test fixture (small committed sample parquet) so CI does not need R at runtime.
 - **Deploy cache strategy (Phase 7).** The SHAP cache is gitignored (derived,
