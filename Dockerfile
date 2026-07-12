@@ -30,7 +30,7 @@ COPY . .
 # model repo and reconstruct it under mlruns/, so predict.py resolves the model
 # via the is_production tag with no code change. Pinned to an immutable revision
 # SHA for reproducible builds.
-ARG MODEL_BUNDLE_REVISION=8f5788459c6a06210f47423b0d7126f88e7b9223
+ARG MODEL_BUNDLE_REVISION=e7ab195a35fbad3ce6bc9df2eb749c3977577b2e
 ARG MODEL_BUNDLE_URL=https://huggingface.co/MarianGarabana/property-valuation-model/resolve/${MODEL_BUNDLE_REVISION}/production_run.tar.gz
 RUN curl -fsSL "$MODEL_BUNDLE_URL" -o /tmp/production_run.tar.gz \
     && tar xzf /tmp/production_run.tar.gz -C . \
