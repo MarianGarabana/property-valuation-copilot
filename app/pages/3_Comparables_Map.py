@@ -3,8 +3,7 @@ import pydeck as pdk
 import streamlit as st
 from utils import apply_css, render_sidebar, render_caveat, load_listings_df, render_metric_card
 
-from agents import comparables_agent
-from agents.data import get_subject
+from api_client import ApiError, fetch_comparables
 
 st.set_page_config(page_title="Comparables Map · Valuation Copilot", page_icon="🏠", layout="wide")
 apply_css()
@@ -22,11 +21,10 @@ asset_id = st.text_input("Subject asset_id", value=default_id)
 
 if st.button("Find comparables", type="primary"):
     try:
-        subject = get_subject(asset_id)
-        result = comparables_agent.run(subject)
-        st.session_state["comparables_state"] = {"subject": subject, "result": result}
-    except Exception as exc:
-        st.error(f"Could not retrieve comparables for this property: {exc}")
+        result = fetch_comparables(asset_id)
+        st.session_state["comparables_state"] = {"asset_id": asset_id, "result": result}
+    except ApiError as exc:
+        st.error(str(exc))
         st.session_state["comparables_state"] = None
 
 state = st.session_state.get("comparables_state")
@@ -34,10 +32,16 @@ if state is None:
     st.info("Enter an asset_id and find comparables.")
     st.stop()
 
-subject = state["subject"]
+asset_id = state["asset_id"]
 result = state["result"]
-
 comps = result["comps"]
+
+subject_matches = df[df["asset_id"] == asset_id]
+if subject_matches.empty:
+    st.error(f"asset_id {asset_id} is not in the listings, so the map cannot be centered. No comparables shown.")
+    st.stop()
+subject_row = subject_matches.iloc[0]
+
 st.caption(f"Method: {result['method']}")
 
 col1, col2, col3 = st.columns(3)
@@ -50,15 +54,18 @@ with col3:
 
 map_rows = [
     {
-        "lat": subject["latitude"],
-        "lon": subject["longitude"],
-        "label": f"Subject ({subject['asset_id']})",
+        "lat": subject_row["latitude"],
+        "lon": subject_row["longitude"],
+        "label": f"Subject ({asset_id})",
         "color": [183, 38, 131],
         "radius": 90,
     }
 ]
 for comp in comps:
-    comp_row = df[df["asset_id"] == comp["asset_id"]].iloc[0]
+    comp_matches = df[df["asset_id"] == comp["asset_id"]]
+    if comp_matches.empty:
+        continue
+    comp_row = comp_matches.iloc[0]
     map_rows.append(
         {
             "lat": comp_row["latitude"],
@@ -71,7 +78,7 @@ for comp in comps:
 map_df = pd.DataFrame(map_rows)
 
 view_state = pdk.ViewState(
-    latitude=float(subject["latitude"]), longitude=float(subject["longitude"]), zoom=13
+    latitude=float(subject_row["latitude"]), longitude=float(subject_row["longitude"]), zoom=13
 )
 layer = pdk.Layer(
     "ScatterplotLayer",

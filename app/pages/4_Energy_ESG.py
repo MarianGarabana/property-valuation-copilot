@@ -1,9 +1,7 @@
 import streamlit as st
 from utils import apply_css, render_sidebar, render_caveat, load_listings_df, render_metric_card
 
-from agents import energy_agent
-from agents.data import get_subject
-from agents.narrative_agent import ENERGY_DISCLAIMER
+from api_client import ApiError, fetch_energy
 
 st.set_page_config(page_title="Energy / ESG · Valuation Copilot", page_icon="🏠", layout="wide")
 apply_css()
@@ -26,11 +24,10 @@ asset_id = st.text_input("Subject asset_id", value=default_id)
 
 if st.button("Assess energy profile", type="primary"):
     try:
-        subject = get_subject(asset_id)
-        result = energy_agent.run(subject)
+        result = fetch_energy(asset_id)
         st.session_state["energy_state"] = result
-    except Exception as exc:
-        st.error(f"Could not derive an energy profile for this property: {exc}")
+    except ApiError as exc:
+        st.error(str(exc))
         st.session_state["energy_state"] = None
 
 result = st.session_state.get("energy_state")
@@ -73,4 +70,4 @@ else:
         f"Scope: {impact['scope']}. Post-2006 stock lists {direction} than pre-1980 stock "
         f"by this gap, applied to the property's {impact['subject_area_m2']} m2."
     )
-    st.warning(ENERGY_DISCLAIMER)
+    st.warning(result["energy_disclaimer"])

@@ -1,9 +1,9 @@
+import base64
+
 import streamlit as st
 from utils import apply_css, render_sidebar, render_caveat, load_listings_df, render_metric_card
 
-import predict as tabular_predict
-import explain as shap_explain
-from agents.data import get_subject
+from api_client import ApiError, fetch_estimate, fetch_estimate_posted, post_payload_key
 
 st.set_page_config(page_title="Value Estimator · Valuation Copilot", page_icon="🏠", layout="wide")
 apply_css()
@@ -25,18 +25,15 @@ NEIGHBORHOOD_DEFAULTS = (
 
 mode = st.radio("Subject property", ["Existing listing (asset_id)", "Enter a property"], horizontal=True)
 
-subject = None
+request = None
 
 if mode == "Existing listing (asset_id)":
     default_id = df.sort_values("asset_id")["asset_id"].iloc[0]
     asset_id = st.text_input("asset_id", value=default_id)
     if st.button("Look up", type="primary"):
-        try:
-            subject = get_subject(asset_id)
-            st.session_state["value_estimator_subject"] = subject
-        except KeyError as exc:
-            st.error(str(exc))
-    subject = st.session_state.get("value_estimator_subject")
+        st.session_state["value_estimator_request"] = {"kind": "asset", "asset_id": asset_id}
+        st.session_state["value_estimator_subject"] = {"asset_id": asset_id}
+    request = st.session_state.get("value_estimator_request")
 
 else:
     st.write("Unlisted fields (amenities, cadastral, distances) are filled with the barrio median from the dataset.")
@@ -74,42 +71,40 @@ else:
                 "is_studio": 1 if property_type == "studio" else 0,
             }
         )
-        row["cnn_condition_score"] = None
-        st.session_state["value_estimator_subject"] = row
-    subject = st.session_state.get("value_estimator_subject")
+        row.pop("cnn_condition_score", None)
+        st.session_state["value_estimator_request"] = {"kind": "custom", "payload_key": post_payload_key(row)}
+        st.session_state.pop("value_estimator_subject", None)
+    request = st.session_state.get("value_estimator_request")
 
-if subject is None:
+if request is None:
     st.info("Select an existing listing or enter a property, then estimate its value.")
     st.stop()
 
-@st.cache_data(show_spinner=False)
-def _cached_explain(subject):
-    return shap_explain.explain(subject)
-
-
-with st.spinner("Computing estimate, range, and SHAP drivers..."):
+with st.spinner("Requesting estimate, range, and SHAP drivers from the valuation API..."):
     try:
-        explained = _cached_explain(subject)
-        interval = tabular_predict.predict_one(subject)
-    except Exception as exc:
-        st.error(f"Could not produce a valuation for this property: {exc}")
+        if request["kind"] == "asset":
+            estimate = fetch_estimate(request["asset_id"])
+        else:
+            estimate = fetch_estimate_posted(request["payload_key"])
+    except ApiError as exc:
+        st.error(str(exc))
         st.stop()
 
-drivers = explained.get("top_drivers")
-low = explained.get("low")
-high = explained.get("high")
+drivers = estimate.get("top_drivers")
+low = estimate.get("low")
+high = estimate.get("high")
 
 if not drivers or low is None or high is None:
     st.error("No confidence range or SHAP drivers available for this property. No estimate is shown.")
     st.stop()
 
-nominal_pct = interval["interval_coverage"] * 100
-measured_pct = interval["interval_test_coverage"] * 100
+nominal_pct = estimate["interval_coverage"] * 100
+measured_pct = estimate["interval_test_coverage"] * 100
 
 st.subheader("Estimate")
 col1, col2 = st.columns(2)
 with col1:
-    render_metric_card("Estimated market value", f"EUR {explained['estimate']:,.0f}")
+    render_metric_card("Estimated market value", f"EUR {estimate['estimate']:,.0f}")
 with col2:
     render_metric_card("Confidence range", f"EUR {low:,.0f} to EUR {high:,.0f}")
 st.caption(
@@ -119,8 +114,11 @@ st.caption(
 )
 
 st.subheader("SHAP drivers")
-st.image(explained["plot"], caption="Waterfall of the top drivers behind the estimate.")
-st.write(explained["driver_text"])
+st.image(
+    base64.b64decode(estimate["shap_plot_png_base64"]),
+    caption="Waterfall of the top drivers behind the estimate.",
+)
+st.write(estimate["driver_text"])
 
 driver_rows = [
     {
