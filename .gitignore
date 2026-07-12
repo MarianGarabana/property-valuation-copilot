@@ -1,6 +1,7 @@
 reference/
 data/raw/*
 !data/raw/.gitkeep
+data/images/
 __pycache__/
 *.pyc
 .venv/
@@ -10,6 +11,9 @@ models/tabular/*.pt
 models/tabular/*.txt
 models/tabular/*.joblib
 models/explain/cache/
+models/image/features_subset.npz
+models/image/tile_assignment.parquet
+models/image/subset_manifest.parquet
 .DS_Store
 *.egg-info/
 .streamlit/secrets.toml
