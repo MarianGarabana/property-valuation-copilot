@@ -35,7 +35,18 @@ ARG MODEL_BUNDLE_URL=https://huggingface.co/MarianGarabana/property-valuation-mo
 RUN curl -fsSL "$MODEL_BUNDLE_URL" -o /tmp/production_run.tar.gz \
     && tar xzf /tmp/production_run.tar.gz -C . \
     && rm /tmp/production_run.tar.gz \
-    && test -f mlruns/494524669144656547/f52e8fc77a9d4a528d48e6ff6103b3b2/tags/is_production
+    && test -f mlruns/494524669144656547/f52e8fc77a9d4a528d48e6ff6103b3b2/tags/is_production \
+    && sed -i -E "s|file://[^[:space:]]*/mlruns|file:///app/mlruns|" \
+        mlruns/494524669144656547/meta.yaml \
+        mlruns/494524669144656547/f52e8fc77a9d4a528d48e6ff6103b3b2/meta.yaml
+
+# Build-time proof the model resolves exactly the way predict.py resolves it.
+# A bundle, path, or metadata defect fails the build here instead of the runtime.
+RUN python -c "\
+import sys; sys.path.insert(0, 'models/tabular'); \
+import predict; b = predict._load_bundle(); \
+assert b['_booster'] is not None and b['_q05'] is not None and b['_q95'] is not None; \
+print('model bundle resolves, run', b['run_id'])"
 
 EXPOSE 7860
 
