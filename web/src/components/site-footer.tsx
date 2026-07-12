@@ -11,7 +11,8 @@ export function SiteFooter() {
               A student prototype of an explainable automated valuation model
               for Madrid residential property. Estimates come from 2018 Madrid
               asking prices (idealista18); this is a historical prototype, not
-              a live market feed.
+              a live market feed. No data was scraped from idealista or any
+              restricted portal; all sources are free and open.
             </p>
           </div>
           <div className="space-y-2 text-sm text-footer-muted">

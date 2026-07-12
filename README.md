@@ -2,8 +2,10 @@
 
 An explainable Automated Valuation Model for Madrid residential property. It estimates
 market value with a confidence range, explains the drivers with SHAP, shows comparable
-properties on a map, flags energy/ESG risk, scores property condition from images with
-a CNN, and writes a review-ready valuation narrative through a LangGraph copilot.
+properties on a map, flags energy/ESG risk, and writes a review-ready valuation
+narrative through a LangGraph copilot. A CNN condition score from aerial imagery was
+built under leakage controls, measured redundant against the existing condition
+feature, and dropped; it ships as a documented capability demo, not a model input.
 
 ## Data honesty
 
@@ -120,10 +122,11 @@ accurate today.
 
 ## Status
 
-Phases 0 to 6B complete and reviewer-gated: data and ETL, tabular models with CQR
-intervals, SHAP explainability, the vision capability demo (evaluated and dropped),
-the LangGraph copilot, the Streamlit dashboard, the FastAPI /v1 API, and the Next.js
-frontend. Phase 7 (MLOps and deploy) is in progress: MLflow model artifact delivery,
-the data-drift check, GitHub Actions CI, and the free-host deployment. Remaining:
-Phase 8 (final review). See PropertyValuation_BuildPlan_StepByStep.md and
-PROJECT_HISTORY.md.
+All build phases complete and reviewer-gated, including the Phase 8 final review:
+data and ETL, tabular models with CQR intervals, SHAP explainability, the vision
+capability demo (evaluated and dropped), the LangGraph copilot, the Streamlit
+dashboard, the FastAPI /v1 API, the Next.js frontend, and the free-host deployment
+with MLflow artifact delivery, a data-drift check, and GitHub Actions CI. Live:
+https://property-valuation-copilot.vercel.app (frontend) and
+https://property-valuation-api-f5et.onrender.com (API). See MODEL_CARD.md,
+DEMO_SCRIPT.md, and PROJECT_HISTORY.md.
