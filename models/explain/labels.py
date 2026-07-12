@@ -34,9 +34,9 @@ CONTINUOUS_LABELS = {
     "cad_max_building_floor": "building max floor ({v:.0f})",
     "cad_dwelling_count": "number of dwellings in the building ({v:.0f})",
     "cadastral_quality_id": "cadastral quality band ({v:.0f})",
-    "distance_to_city_center": "distance to the city center ({v:,.0f} m)",
-    "distance_to_metro": "distance to the nearest metro ({v:,.0f} m)",
-    "distance_to_castellana": "distance to Paseo de la Castellana ({v:,.0f} m)",
+    "distance_to_city_center": "distance to the city center ({v:.1f} km)",
+    "distance_to_metro": "distance to the nearest metro ({v:.1f} km)",
+    "distance_to_castellana": "distance to Paseo de la Castellana ({v:.1f} km)",
 }
 
 CATEGORICAL_LABELS = {

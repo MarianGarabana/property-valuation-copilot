@@ -153,9 +153,9 @@ FEATURES = [
     Feature("cad_dwelling_count", "int", "CADDWELLINGCOUNT", True, "Cadastral dwelling count in the building."),
     Feature("cadastral_quality_id", "int", "CADASTRALQUALITYID", True, "Cadastral quality band, 0 (best) to 9."),
     # Geographic distance features.
-    Feature("distance_to_city_center", "float", "DISTANCE_TO_CITY_CENTER", False, "Distance to city center in meters."),
-    Feature("distance_to_metro", "float", "DISTANCE_TO_METRO", False, "Distance to nearest metro in meters."),
-    Feature("distance_to_castellana", "float", "DISTANCE_TO_CASTELLANA", False, "Distance to Paseo de la Castellana in meters."),
+    Feature("distance_to_city_center", "float", "DISTANCE_TO_CITY_CENTER", False, "Distance to city center in kilometers."),
+    Feature("distance_to_metro", "float", "DISTANCE_TO_METRO", False, "Distance to nearest metro in kilometers."),
+    Feature("distance_to_castellana", "float", "DISTANCE_TO_CASTELLANA", False, "Distance to Paseo de la Castellana in kilometers."),
     # Image-model placeholder, filled by the CNN in Phase 4.
     Feature("cnn_condition_score", "float", "placeholder", True, "CNN aerial condition score (0 to 1). Tested in Phase 4, measured redundant against condition (subset ablation: MAE +303, RMSE +386, MAPE +0.10pp), intentionally dropped. Not a model feature; stays null. Closed decision, not a TODO."),
 ]
