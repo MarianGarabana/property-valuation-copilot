@@ -45,19 +45,23 @@ energy, and copilot pages show an explicit error and no numbers.
 
 The public deployment is two free-tier hosts:
 
-- The FastAPI service runs as a Docker Space on Hugging Face (free CPU tier, port
-  7860). It is the single source of truth for every number.
+- The FastAPI service runs as a Docker web service on Render's free tier
+  (512MB RAM; the API was measured at 398MB with every endpoint exercised).
+  It is the single source of truth for every number. Hugging Face was the
+  original target but paywalled Docker Spaces for new free accounts mid-deploy,
+  so Render substitutes as the free host.
 - The Next.js frontend runs on Vercel Hobby (personal, non-commercial use) and
   reads the API base URL from the NEXT_PUBLIC_API_URL environment variable.
 
-A browser talks to the Vercel app, which talks to the Space. CORS on the Space is
-set through the API_CORS_ORIGINS variable to the exact Vercel origin.
+A browser talks to the Vercel app, which talks to the Render service. CORS on
+the service is set through the API_CORS_ORIGINS variable to the exact Vercel
+origin.
 
-The free Space sleeps after a period of inactivity. The first request after it
-sleeps has to wake the container and load the model before it can answer. Model
-load was measured at about 7 seconds. The frontend shows a waking state and gives
-up after a hard 90 second timeout, failing closed with no numbers rather than
-showing a partial result.
+The free service sleeps after 15 minutes of inactivity. The first request after
+it sleeps has to wake the container (30 to 50 seconds on Render) and load the
+model (about 7 seconds measured) before it can answer. The frontend shows a
+waking state and gives up after a hard 90 second timeout, failing closed with no
+numbers rather than showing a partial result.
 
 ## Model artifact delivery
 
@@ -89,7 +93,7 @@ artifact, which is not in git. The tests that load the model and check its numbe
 local_only and run locally and at the reviewer gate, not in CI. A green CI run
 therefore proves the code lints, the data contract holds, the drift check works,
 and the frontend builds. It does not prove the served predictions are correct;
-that is verified locally and by the deployed-Space smoke test.
+that is verified locally and by the deployed-service smoke test.
 
 ## Data drift
 

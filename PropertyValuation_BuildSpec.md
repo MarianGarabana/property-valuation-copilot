@@ -27,7 +27,7 @@ The build is done when:
 - An energy/ESG flag appears (rule-based or predicted EPC band) with its value impact.
 - A copilot produces a written valuation summary combining the above.
 - Model training is tracked (MLflow), and there is a basic drift/monitoring check and CI.
-- The app is deployed to a free host (Streamlit Community Cloud or Hugging Face Spaces) and loads publicly.
+- The app is deployed to a free host (Streamlit Community Cloud or Hugging Face Spaces) and loads publicly. (Amended 2026-07-12, user-approved: Hugging Face paywalled Docker Spaces mid-deploy, so Render's free tier substitutes as the free API host. The named hosts were examples of free hosting; any genuinely free host honors the intent.)
 
 Phase 6B addendum (user-approved, added 2026-07-12; Phase 8 reviews against it):
 

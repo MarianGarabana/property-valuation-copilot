@@ -1,5 +1,6 @@
-# Hugging Face Spaces Docker convention: the app must listen on port 7860.
-# Build context is the repo root:  docker build -f api/Dockerfile -t pvc-api .
+# API service image, deployed on Render's free tier. Listens on $PORT
+# (Render injects it; 7860 stays the local default).
+# Build context is the repo root:  docker build -t pvc-api .
 FROM python:3.13-slim
 
 ENV PYTHONUNBUFFERED=1 \
