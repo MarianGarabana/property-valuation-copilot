@@ -22,6 +22,7 @@ from labels import describe_feature
 
 _PLOT_LOCK = threading.Lock()
 
+
 def _get_meta():
     return tabular_predict._load_bundle()
 

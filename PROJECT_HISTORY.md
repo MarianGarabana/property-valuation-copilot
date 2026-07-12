@@ -266,8 +266,10 @@ Phases run in order; the reviewer gates each against the spec's Section 2 before
   stack: API https://property-valuation-api-f5et.onrender.com (Render free,
   Docker), frontend https://web-two-ebon-18.vercel.app (Vercel Hobby), model
   bundle MarianGarabana/property-valuation-model at immutable revision e7ab195.
-  CI green (18 model-free tests + web build + contrast check). Drift check in
-  mlops/drift.py. CORS pinned to the Vercel origin and verified refused for a
+  CI: red at the first Phase 7 gate (the pred_contrib commit dropped a blank
+  line, flake8 E302, and the lead recorded "CI green" without rechecking after
+  that push; reviewer caught both the red runs and the false claim). Fixed and
+  re-verified green before the re-gate. Drift check in mlops/drift.py. CORS pinned to the Vercel origin and verified refused for a
   foreign origin. Deployed number identity exact at full precision on the
   reference asset. The old CI note about R and a sample parquet was moot: the
   full parquet has been git-tracked since Phase 1.
