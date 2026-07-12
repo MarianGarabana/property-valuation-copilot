@@ -262,7 +262,28 @@ Phases run in order; the reviewer gates each against the spec's Section 2 before
      Two out-of-web changes made and re-gated (both PASS): additive optional coordinates on the comparables payload (a deployed Vercel app cannot read the local parquet; latitude/longitude per comp, subject_latitude/subject_longitude on the response; spot-checked against the parquet; no existing field changed), and a module-level threading.Lock around the matplotlib waterfall render in models/explain/shap_explainer.py (matplotlib global state is not thread-safe; concurrent API requests raced with IndexError inside shap.plots.waterfall; reviewer reproduced 8 failures in 16 concurrent renders without the lock, 0 with it; Streamlit never hit it because it called endpoints sequentially). Known ceiling, user-noted: the lock serializes SHAP rendering; if throughput ever matters, switch the render to matplotlib's object-oriented API (explicit Figure, no global pyplot state) and drop the lock. Fine as-is for a demo.
      User-recorded judgment call: the agent was told to render a SHAP waterfall and refused on honesty grounds; a bridge chart from only the top 5 of 38 features fabricates the intermediate cumulative totals it appears to show. Diverging bars with an on-screen top-5 note are the honest chart. Marian confirmed the override was correct.
   The framework-agnostic honesty rules for the API and every frontend are in the spec's Section 2 Phase 6B addendum. Deploy folds into Phase 7, all free: API Docker image on Hugging Face Spaces, Next.js on Vercel Hobby, CORS from Vercel to the Space, backend URL as a frontend env var, cold start noted in the README.
-- **Phase 7 — MLOps and deploy (mlops).** MLflow registry, data-drift check, GitHub Actions CI, deploy to a free host. CI note: it now depends on base R plus shapely, so commit a small sample parquet as a test fixture instead of regenerating through R on the runner.
+- **Phase 7 — MLOps and deploy: BUILT AND LIVE, reviewer gate pending.** Live
+  stack: API https://property-valuation-api-f5et.onrender.com (Render free,
+  Docker), frontend https://web-two-ebon-18.vercel.app (Vercel Hobby), model
+  bundle MarianGarabana/property-valuation-model at immutable revision e7ab195.
+  CI green (18 model-free tests + web build + contrast check). Drift check in
+  mlops/drift.py. CORS pinned to the Vercel origin and verified refused for a
+  foreign origin. Deployed number identity exact at full precision on the
+  reference asset. The old CI note about R and a sample parquet was moot: the
+  full parquet has been git-tracked since Phase 1.
+  Deploy war stories, each measured and fixed at the root:
+  1. HF paywalled Docker Spaces mid-deploy (see governance log); Render
+     substituted.
+  2. macOS bsdtar contaminated the model tarball with binary xattr pax records;
+     MLflow crashed reading them as UTF-8. Repacked with python tarfile.
+  3. Absolute file:///Users/... artifact URIs in the MLflow meta.yaml broke
+     artifact download in the container; sed rewrite at build plus a build-time
+     model-resolution check so the class fails builds, not runtimes.
+  4. shap.TreeExplainer init spiked to 683MB peak (measured) and OOM-killed the
+     512MB instance. Replaced with LightGBM's native pred_contrib: identical
+     SHAP values (allclose verified; the suite's additivity test holds), 372MB
+     peak. Every Phase 3 artifact stays valid. OMP_NUM_THREADS=1 and
+     MALLOC_ARENA_MAX=2 also set on the image.
 - **Phase 8 — Final review (reviewer on Fable 5).** Full pass against Section 2, honesty constraints visible, no paid dependency, model card and demo script.
 - **Stretch (after Phase 8).** RL module (budget-constrained re-valuation ordering or retrofit sequencing), Barcelona/Valencia expansion, physical-climate-risk overlay.
 
