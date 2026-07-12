@@ -9,6 +9,7 @@ ENV PYTHONUNBUFFERED=1 \
     OMP_NUM_THREADS=1 \
     MALLOC_ARENA_MAX=2 \
     MLFLOW_ALLOW_FILE_STORE=true \
+    API_CORS_ORIGINS=https://web-two-ebon-18.vercel.app \
     PORT=7860
 
 RUN apt-get update \
