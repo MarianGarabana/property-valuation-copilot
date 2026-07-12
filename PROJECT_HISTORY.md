@@ -468,9 +468,14 @@ forced template fallback. Reviewer verdict: PASS.
   mandatory long verbatim sentences pushes an 8B model to paraphrase or drop
   the disclaimer to fit. The one accepted narrative is fluent and carries
   every figure and both verbatim sentences. Deployed behavior unchanged
-  (template-only via COPILOT_DISABLE_LLM=1). Possible future tuning, not
-  scheduled: raise the word budget or harden the verbatim block for higher
-  acceptance.
+  (template-only via COPILOT_DISABLE_LLM=1). Recommended future tuning
+  (user-set, not scheduled): have the model generate only the variable prose
+  and append the verbatim disclaimer sentences programmatically after
+  generation, so the model never spends its word budget on them, acceptance
+  rises, and the disclaimers are guaranteed present instead of
+  model-dependent. Precision rule for any writeup: the run shows the
+  completeness guard working and the fabrication defense present and
+  untriggered; it did not catch fabrications, because there were none.
 - **Kaggle.** Add `~/.kaggle/kaggle.json` if the secondary source is wanted later.
 - **CI data strategy.** Decide the test fixture (small committed sample parquet) so CI does not need R at runtime.
 - **Deploy cache strategy (Phase 7).** The SHAP cache is gitignored (derived,

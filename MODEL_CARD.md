@@ -94,6 +94,12 @@ measured redundant, so it does not feed the model. The full write-up is
 - The copilot narrative validates every number against computed facts and falls back to a
   labeled template when the LLM output fails validation; the deployed service runs the
   template path.
+- The validator was tested against a live LLM (llama3.1:8b via local Ollama, 10
+  properties): it correctly rejected all 9 non-compliant narratives and fell back safely
+  to the labeled template every time, with no call failures. Every rejection was a
+  missing mandatory disclaimer sentence. The model never fabricated a figure, so the
+  number-fidelity check is present and untriggered, not proven in fire; the run shows
+  the completeness guard working, not fabrications being caught.
 
 ## Licenses and attributions
 

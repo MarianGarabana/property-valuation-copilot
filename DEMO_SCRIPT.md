@@ -114,3 +114,9 @@ which is a good live proof of the honesty rules.
 4. The CNN story: a deep-learning feature that was built, measured redundant on a
    controlled ablation, and dropped, with the evaluation published. Honest negative
    results are rare in portfolios and interviewers know it.
+5. The narrative validator, stated precisely: it was tested against a live LLM on 10
+   properties and correctly rejected every non-compliant narrative (9 of 10, each for a
+   dropped mandatory disclaimer sentence), falling back to the labeled template every
+   time. The model never fabricated a number, so say the fabrication defense is present
+   and untriggered; do not claim it caught fabrications, because there were none to
+   catch.
