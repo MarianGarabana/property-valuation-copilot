@@ -21,7 +21,11 @@ export function HeroSample() {
     kind: "asset",
     assetId: SAMPLE_ASSET_ID,
   });
-  const { state, coldStart } = useEndpoint(subject, fetchEstimate, 0);
+  const { state, coldStart, coldStartAt } = useEndpoint(
+    subject,
+    fetchEstimate,
+    0
+  );
 
   return (
     <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
@@ -36,7 +40,7 @@ export function HeroSample() {
 
       {state.status === "pending" && coldStart ? (
         <div className="mt-4">
-          <ColdStartNotice />
+          <ColdStartNotice startedAt={coldStartAt} />
         </div>
       ) : state.status === "pending" ? (
         <div className="mt-4 space-y-3">

@@ -77,11 +77,10 @@ function ValuationWorkspace() {
   const energy = useEndpoint(subject, fetchEnergy, attempt);
   const copilot = useEndpoint(subject, fetchCopilot, attempt);
 
-  const anyColdStart =
-    estimate.coldStart ||
-    comparables.coldStart ||
-    energy.coldStart ||
-    copilot.coldStart;
+  const coldStartTimes = [estimate, comparables, energy, copilot]
+    .map((endpoint) => endpoint.coldStartAt)
+    .filter((at): at is number => at !== null);
+  const anyColdStart = coldStartTimes.length > 0;
   const caveat = useMemo(() => {
     if (estimate.state.status === "success") {
       return estimate.state.data.caveat ?? STATIC_CAVEAT;
@@ -313,7 +312,9 @@ function ValuationWorkspace() {
         </section>
       ) : (
         <div className="space-y-6">
-          {anyColdStart ? <ColdStartNotice /> : null}
+          {anyColdStart ? (
+            <ColdStartNotice startedAt={Math.min(...coldStartTimes)} />
+          ) : null}
 
           {estimate.state.status === "pending" ? (
             <SectionSkeleton rows={5} />

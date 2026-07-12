@@ -27,10 +27,13 @@ no server proxy, so the API's `API_CORS_ORIGINS` must include the site origin.
 ## Deploy (Vercel Hobby, free)
 
 Import the `web/` directory as a Vercel project and set `NEXT_PUBLIC_API_URL`
-to the Hugging Face Space URL. All pages are static; every number is fetched
-client-side at view time. The free Space sleeps when idle, so the first request
-can take up to a minute; the UI shows a "waking the model" state and every
-request times out after 90 seconds rather than hanging.
+to the deployed API URL (a Render free-tier web service). All pages are static;
+every number is fetched client-side at view time. The free service sleeps when
+idle and a sleeping instance can answer with an immediate 502 while it wakes,
+so the client retries 502/503 and connection errors on a 3 to 5 second backoff
+inside a hard 90 second budget and shows a "waking the model" state. 4xx
+responses and contract failures are never retried. After the budget the UI
+fails closed with an explicit error and zero numbers.
 
 ## Honesty rules enforced here
 

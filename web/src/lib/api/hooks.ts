@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ApiError, COLD_START_HINT_MS, type Subject } from "./client";
+import {
+  ApiError,
+  COLD_START_HINT_MS,
+  type RequestOptions,
+  type Subject,
+} from "./client";
 
 export type RequestState<T> =
   | { status: "idle" }
@@ -12,35 +17,41 @@ export type RequestState<T> =
 /**
  * Fail-closed request hook. The only way numbers reach the screen is a
  * response that passed the Zod contract check; every other outcome is an
- * explicit error state. `coldStart` flips after COLD_START_HINT_MS so the
- * UI can switch to the "waking the model" treatment.
+ * explicit error state. `coldStartAt` is set (to the request start time)
+ * after COLD_START_HINT_MS, or as soon as the client starts a cold-start
+ * retry, so the UI can switch to the "waking the model" treatment.
  */
 export function useEndpoint<T>(
   subject: Subject | null,
-  fetcher: (subject: Subject) => Promise<T>,
+  fetcher: (subject: Subject, opts?: RequestOptions) => Promise<T>,
   attempt: number
 ) {
   const key = subject === null ? null : `${attempt}:${JSON.stringify(subject)}`;
   const [state, setState] = useState<RequestState<T>>({ status: "idle" });
-  const [coldStart, setColdStart] = useState(false);
+  const [coldStartAt, setColdStartAt] = useState<number | null>(null);
   const [prevKey, setPrevKey] = useState<string | null>(null);
 
   // Render-phase adjustment: a new subject resets to pending immediately,
   // so a stale success can never be shown for the new request.
   if (key !== prevKey) {
     setPrevKey(key);
-    setColdStart(false);
+    setColdStartAt(null);
     setState(key === null ? { status: "idle" } : { status: "pending" });
   }
 
   useEffect(() => {
     if (subject === null || key === null) return;
     let cancelled = false;
+    const requestStart = Date.now();
     const hint = setTimeout(() => {
-      if (!cancelled) setColdStart(true);
+      if (!cancelled) setColdStartAt(requestStart);
     }, COLD_START_HINT_MS);
 
-    fetcher(subject)
+    fetcher(subject, {
+      onColdStartRetry: () => {
+        if (!cancelled) setColdStartAt(requestStart);
+      },
+    })
       .then((data) => {
         if (!cancelled) setState({ status: "success", data });
       })
@@ -54,7 +65,7 @@ export function useEndpoint<T>(
       })
       .finally(() => {
         clearTimeout(hint);
-        if (!cancelled) setColdStart(false);
+        if (!cancelled) setColdStartAt(null);
       });
 
     return () => {
@@ -63,5 +74,5 @@ export function useEndpoint<T>(
     };
   }, [key, subject, fetcher]);
 
-  return { state, coldStart };
+  return { state, coldStart: coldStartAt !== null, coldStartAt };
 }

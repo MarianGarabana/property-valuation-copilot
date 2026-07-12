@@ -4,18 +4,25 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import type { ApiError } from "@/lib/api/client";
-import { COLD_START_HINT_MS, REQUEST_TIMEOUT_MS } from "@/lib/api/client";
+import { REQUEST_TIMEOUT_MS } from "@/lib/api/client";
 
 /**
- * Cold-start treatment. The deployed API is a free Hugging Face Space that
- * sleeps when idle, so the first request after a pause is slow on purpose.
+ * Cold-start treatment. The deployed API runs on free hosting that sleeps
+ * when idle, so the first request after a pause is slow on purpose.
  */
-export function ColdStartNotice() {
-  const [elapsed, setElapsed] = useState(Math.round(COLD_START_HINT_MS / 1000));
+export function ColdStartNotice({
+  startedAt,
+}: {
+  /** When the request went pending; the elapsed counter is measured from it. */
+  startedAt?: number | null;
+}) {
+  const [mountedAt] = useState(() => Date.now());
+  const [now, setNow] = useState(mountedAt);
   useEffect(() => {
-    const timer = setInterval(() => setElapsed((s) => s + 1), 1000);
+    const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
+  const elapsed = Math.max(0, Math.round((now - (startedAt ?? mountedAt)) / 1000));
   return (
     <div className="flex items-start gap-4 rounded-lg border border-border bg-card p-5">
       <span className="relative mt-1 flex size-3 shrink-0">
@@ -27,11 +34,11 @@ export function ColdStartNotice() {
           Waking the model ({elapsed}s)
         </p>
         <p className="max-w-prose text-sm leading-6 text-muted-foreground">
-          The valuation API runs on a free Hugging Face Space that sleeps when
-          idle. The first request after a pause loads the model from scratch
-          and can take up to a minute. The request stops after{" "}
-          {REQUEST_TIMEOUT_MS / 1000} seconds; no numbers appear until a full
-          response arrives.
+          The valuation API runs on free hosting that sleeps when idle. The
+          first request after a pause has to wake the server and load the
+          model, which can take up to a minute. The page retries automatically
+          while the server wakes and stops after {REQUEST_TIMEOUT_MS / 1000}{" "}
+          seconds; no numbers appear until a full response arrives.
         </p>
       </div>
     </div>

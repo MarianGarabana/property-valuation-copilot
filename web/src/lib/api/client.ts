@@ -10,14 +10,24 @@ export const API_URL = (
 ).replace(/\/+$/, "");
 
 /**
- * Hard request timeout. The deployed API is a free Hugging Face Space that
- * sleeps when idle; a cold start can take tens of seconds. 90 seconds gives
- * the Space time to wake while still failing closed instead of hanging.
+ * Total request budget. The deployed API runs on free hosting (a Render web
+ * service) that sleeps when idle; a cold start takes 30 to 50 seconds plus
+ * model load. 90 seconds covers a full wake while still failing closed
+ * instead of hanging.
  */
 export const REQUEST_TIMEOUT_MS = 90_000;
 
 /** After this long in flight, the UI switches to the cold-start treatment. */
 export const COLD_START_HINT_MS = 8_000;
+
+/**
+ * A sleeping instance can answer with an immediate 502/503 or a connection
+ * error instead of hanging. Those failures are retried on this backoff until
+ * REQUEST_TIMEOUT_MS is spent. 4xx responses, other statuses, and contract
+ * failures are never retried.
+ */
+export const RETRY_INITIAL_DELAY_MS = 3_000;
+export const RETRY_MAX_DELAY_MS = 5_000;
 
 export type ApiFailure =
   | { kind: "network"; message: string }
@@ -35,13 +45,63 @@ export class ApiError extends Error {
   }
 }
 
+export type RequestOptions = {
+  /** Called before each cold-start retry so the UI can show the waking state. */
+  onColdStartRetry?: () => void;
+};
+
+function isColdStartFailure(failure: ApiFailure): boolean {
+  return (
+    failure.kind === "network" ||
+    (failure.kind === "http" &&
+      (failure.status === 502 || failure.status === 503))
+  );
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function request<T>(
   path: string,
   schema: z.ZodType<T, z.ZodTypeDef, unknown>,
+  init?: RequestInit,
+  opts?: RequestOptions
+): Promise<T> {
+  const deadline = Date.now() + REQUEST_TIMEOUT_MS;
+  let delay = RETRY_INITIAL_DELAY_MS;
+  for (;;) {
+    try {
+      return await attempt(path, schema, deadline, init);
+    } catch (err) {
+      if (!(err instanceof ApiError) || !isColdStartFailure(err.failure)) {
+        throw err;
+      }
+      if (Date.now() + delay >= deadline) throw err;
+      opts?.onColdStartRetry?.();
+      await sleep(delay);
+      delay = Math.min(delay + 1_000, RETRY_MAX_DELAY_MS);
+    }
+  }
+}
+
+async function attempt<T>(
+  path: string,
+  schema: z.ZodType<T, z.ZodTypeDef, unknown>,
+  deadline: number,
   init?: RequestInit
 ): Promise<T> {
+  const remaining = deadline - Date.now();
+  if (remaining <= 0) {
+    throw new ApiError({
+      kind: "timeout",
+      message: `The valuation API did not respond within ${
+        REQUEST_TIMEOUT_MS / 1000
+      } seconds.`,
+    });
+  }
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), remaining);
   let res: Response;
   try {
     res = await fetch(`${API_URL}${path}`, {
@@ -124,13 +184,20 @@ export type Subject =
   | { kind: "custom"; input: PropertyInput };
 
 function endpoint<T>(path: string, schema: z.ZodType<T, z.ZodTypeDef, unknown>) {
-  return (subject: Subject): Promise<T> =>
+  return (subject: Subject, opts?: RequestOptions): Promise<T> =>
     subject.kind === "asset"
-      ? request(`${path}/${encodeURIComponent(subject.assetId)}`, schema)
-      : request(path, schema, {
-          method: "POST",
-          body: JSON.stringify(subject.input),
-        });
+      ? request(
+          `${path}/${encodeURIComponent(subject.assetId)}`,
+          schema,
+          undefined,
+          opts
+        )
+      : request(
+          path,
+          schema,
+          { method: "POST", body: JSON.stringify(subject.input) },
+          opts
+        );
 }
 
 export const fetchEstimate = endpoint("/v1/estimate", schemas.EstimateResponse);
@@ -141,6 +208,6 @@ export const fetchComparables = endpoint(
 export const fetchEnergy = endpoint("/v1/energy", schemas.EnergyResponse);
 export const fetchCopilot = endpoint("/v1/copilot", schemas.CopilotResponse);
 
-export function fetchHealth(): Promise<HealthResponse> {
-  return request("/health", schemas.HealthResponse);
+export function fetchHealth(opts?: RequestOptions): Promise<HealthResponse> {
+  return request("/health", schemas.HealthResponse, undefined, opts);
 }
