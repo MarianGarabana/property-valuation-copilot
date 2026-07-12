@@ -1,6 +1,6 @@
 import streamlit as st
 import plotly.express as px
-from utils import apply_css, render_sidebar, render_caveat, chart_header, load_listings_df, render_metric_card
+from utils import apply_css, render_sidebar, render_caveat, chart_header, load_listings_df, render_metric_card, CAVEAT_TEXT
 
 st.set_page_config(page_title="Market Explorer · Valuation Copilot", page_icon="🏠", layout="wide")
 apply_css()
@@ -80,23 +80,28 @@ with tab_charts:
     fig.add_vline(
         x=median_val,
         line_width=2,
-        line_color="#333333",
+        line_color="#24262B",
         annotation_text=f"Median: EUR {median_val:,.0f}",
         annotation_position="top right",
-        annotation_font_color="#333333",
+        annotation_font_color="#24262B",
     )
     chart_header("Asking price distribution", "Distribution of asking prices across the filtered selection. The vertical line marks the median.")
     st.plotly_chart(fig, use_container_width=True)
 
     fig = px.histogram(
-        filtered, x="unit_price_m2", nbins=40, color_discrete_sequence=["#E2F46E"], labels={"unit_price_m2": "", "count": ""}
+        filtered, x="unit_price_m2", nbins=40, color_discrete_sequence=["#D4A24C"], labels={"unit_price_m2": "", "count": ""}
     )
     fig.update_layout(xaxis_title="", yaxis_title="")
     chart_header("EUR/m2 distribution", "Distribution of asking price per built square meter across the filtered selection.")
     st.plotly_chart(fig, use_container_width=True)
 
     fig = px.scatter(
-        filtered, x="area_m2", y="price", color="property_type", opacity=0.6
+        filtered,
+        x="area_m2",
+        y="price",
+        color="property_type",
+        opacity=0.6,
+        color_discrete_sequence=["#B72683", "#D4A24C", "#5B5D63"],
     )
     chart_header("Price vs size", "Scatter of built area against asking price, colored by property type.")
     st.plotly_chart(fig, use_container_width=True)
@@ -152,7 +157,7 @@ with tab_data:
     st.dataframe(filtered, use_container_width=True)
     st.download_button(
         "Download filtered data as CSV",
-        filtered.to_csv(index=False),
-        file_name="madrid_listings_filtered.csv",
+        f"# {CAVEAT_TEXT}\n" + filtered.to_csv(index=False),
+        file_name="madrid_listings_2018_prototype.csv",
         mime="text/csv",
     )

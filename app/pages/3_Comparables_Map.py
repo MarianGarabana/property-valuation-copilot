@@ -64,7 +64,7 @@ for comp in comps:
             "lat": comp_row["latitude"],
             "lon": comp_row["longitude"],
             "label": f"Comp ({comp['asset_id']}, EUR {comp['price']:,.0f})",
-            "color": [226, 244, 110],
+            "color": [212, 162, 76],
             "radius": 60,
         }
     )
