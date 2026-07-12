@@ -456,12 +456,21 @@ forced template fallback. Reviewer verdict: PASS.
   log).** They remain standing rules for any future narrative change: number
   fidelity with template fallback, energy impact grounded and disclaimed, 2018
   caveat inline.
-- **LLM live-path check before Phase 8 (user-set, scheduled).** The narrative
-  LLM path has never executed in this environment (no backend reachable); only
-  the template fallback has run. Before the Phase 8 final review: start Ollama
-  once, run real narratives through it, judge the phrasing quality, and record
-  how often the LLM output trips the validator and falls back to the template.
-  Not blocking Phase 6 or 7.
+- **LLM live-path check: DONE (2026-07-12, llama3.1:8b via local Ollama, 10
+  properties across the 5th-95th price percentile).** Results: 0 call
+  failures; 1 of 10 narratives accepted; 9 rejected by the validator with a
+  clean labeled-template fallback every time. The violation profile is the
+  finding: ZERO fabricated or altered figures across all ten narratives (the
+  validator reports every problem it finds, and the number-fidelity check
+  never fired). Every rejection was a missing required verbatim sentence: the
+  energy disclaimer in 9 of 9 rejections, the 2018 caveat in 3. Root cause is
+  prompt tension, not hallucination: the 150-230 word budget plus several
+  mandatory long verbatim sentences pushes an 8B model to paraphrase or drop
+  the disclaimer to fit. The one accepted narrative is fluent and carries
+  every figure and both verbatim sentences. Deployed behavior unchanged
+  (template-only via COPILOT_DISABLE_LLM=1). Possible future tuning, not
+  scheduled: raise the word budget or harden the verbatim block for higher
+  acceptance.
 - **Kaggle.** Add `~/.kaggle/kaggle.json` if the secondary source is wanted later.
 - **CI data strategy.** Decide the test fixture (small committed sample parquet) so CI does not need R at runtime.
 - **Deploy cache strategy (Phase 7).** The SHAP cache is gitignored (derived,
