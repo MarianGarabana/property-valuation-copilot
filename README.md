@@ -24,7 +24,28 @@ The REST API is unauthenticated by design. This is a free portfolio demo, so the
 is open and has no API key or rate limit. A real deployment would put an API key or an
 auth proxy in front of it before exposing it to the public internet.
 
+## Running locally
+
+The dashboard reads every valuation number from the REST API, so the API must run
+first. Start two processes with the repo interpreter.
+
+Start the API on port 8600:
+
+    .venv/bin/python -m uvicorn api.main:app --port 8600
+
+Then start the dashboard on port 8510, pointing it at the API:
+
+    VALUATION_API_URL=http://localhost:8600 .venv/bin/python -m streamlit run app/Home.py --server.port 8510
+
+The dashboard reads the API base URL from the VALUATION_API_URL environment variable
+and defaults to http://localhost:8600. If the API is down, the valuation, comparables,
+energy, and copilot pages show an explicit error and no numbers.
+
 ## Status
 
-Phase 0 (setup) complete. Build phases 1 to 8 pending; see
-PropertyValuation_BuildPlan_StepByStep.md.
+Phases 0 to 6 complete and reviewer-gated: data and ETL, tabular models with CQR
+intervals, SHAP explainability, the vision capability demo (evaluated and dropped),
+the LangGraph copilot, and the Streamlit dashboard, now backed by the Phase 6B.1
+FastAPI /v1 API. Remaining: Phase 6B.2 (Next.js frontend), Phase 7 (MLOps and
+deploy), Phase 8 (final review). See PropertyValuation_BuildPlan_StepByStep.md and
+PROJECT_HISTORY.md.
